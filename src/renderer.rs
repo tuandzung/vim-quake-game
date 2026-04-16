@@ -17,6 +17,11 @@ pub fn render(frame: &mut Frame<'_>, app: &App) {
         return;
     }
 
+    if app.game_state == GameState::Lost {
+        render_lost(frame, app);
+        return;
+    }
+
     let layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
@@ -136,6 +141,13 @@ fn render_title(frame: &mut Frame<'_>) {
             Span::styled("dd", cyan_bold),
             Span::raw("   Delete Obstacle "),
         ]),
+        Line::from(vec![
+            Span::styled("  ", Style::default()),
+            Span::styled("G", cyan_bold),
+            Span::styled("/", Style::default()),
+            Span::styled("gg", cyan_bold),
+            Span::raw(" Row Jumps         "),
+        ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("  Zone 1: ", Style::default().fg(zone1_color)),
@@ -143,12 +155,12 @@ fn render_title(frame: &mut Frame<'_>) {
             Span::raw("  "),
             Span::styled("Zone 2: ", Style::default().fg(zone2_color)),
             Span::styled("wb", cyan_bold),
-            Span::raw("  "),
-            Span::styled("Zone 3: ", Style::default().fg(zone3_color)),
-            Span::styled("0$", cyan_bold),
         ]),
         Line::from(vec![
-            Span::styled("  Zone 4: ", Style::default().fg(zone4_color)),
+            Span::styled("  Zone 3: ", Style::default().fg(zone3_color)),
+            Span::styled("0$Ggg", cyan_bold),
+            Span::raw(" "),
+            Span::styled("Zone 4: ", Style::default().fg(zone4_color)),
             Span::styled("ft", cyan_bold),
             Span::raw("  "),
             Span::styled("Zone 5: ", Style::default().fg(zone5_color)),
@@ -268,20 +280,23 @@ fn render_win(frame: &mut Frame<'_>, app: &App) {
         0..=3 => "Novice",
         4..=6 => "Apprentice",
         7..=9 => "Journeyman",
-        10 => "Adept",
+        10..=11 => "Adept",
+        12 => "Expert",
         _ => "Master",
     };
     let rating_color = match total_discovered {
         0..=3 => Color::Rgb(205, 127, 50),
         4..=6 => Color::Rgb(192, 192, 192),
         7..=9 => Color::Rgb(255, 215, 0),
+        10..=11 => Color::Rgb(100, 200, 255),
+        12 => Color::Rgb(200, 100, 255),
         _ => Color::Rgb(255, 255, 100),
     };
 
     let mastery_line = Line::from(vec![
         Span::styled("  Motion Mastery: ", Style::default().fg(Color::White)),
         Span::styled(
-            format!("{total_discovered}/11"),
+            format!("{total_discovered}/13"),
             Style::default()
                 .fg(rating_color)
                 .add_modifier(Modifier::BOLD),
@@ -320,6 +335,69 @@ fn render_win(frame: &mut Frame<'_>, app: &App) {
     frame.render_widget(body, centered_rect(80, 70, frame.area()));
 }
 
+fn render_lost(frame: &mut Frame<'_>, app: &App) {
+    let red_bold = Style::default().fg(Color::Red).add_modifier(Modifier::BOLD);
+    let dark_gray = Style::default().fg(Color::DarkGray);
+    let yellow_bold = Style::default()
+        .fg(Color::Yellow)
+        .add_modifier(Modifier::BOLD);
+
+    let skull_lines: Vec<Line> = vec![
+        Line::from(Span::styled("          ████          ", red_bold)),
+        Line::from(Span::styled("        ██    ██        ", red_bold)),
+        Line::from(Span::styled("       ██ █  █ ██       ", red_bold)),
+        Line::from(Span::styled("       ██      ██       ", red_bold)),
+        Line::from(Span::styled("        ████████        ", red_bold)),
+        Line::from(Span::styled("          █  █          ", red_bold)),
+        Line::from(Span::styled("        ██    ██        ", red_bold)),
+        Line::from(""),
+    ];
+
+    let header = Line::from(vec![
+        Span::styled("☠  ", Style::default().fg(Color::Red)),
+        Span::styled("G A M E   O V E R", red_bold),
+        Span::styled("  ☠", Style::default().fg(Color::Red)),
+    ]);
+
+    let duration = format_duration(app.final_time.unwrap_or(app.elapsed));
+
+    let stats = Line::from(format!(
+        "  Level: {} / {}    Time: {duration}    Moves: {}",
+        app.level, TOTAL_LEVELS, app.motion_count
+    ));
+
+    let lives_line = Line::from(Span::styled(
+        "  Lives depleted — an enemy caught you.",
+        Style::default().fg(Color::LightRed),
+    ));
+
+    let footer = vec![
+        Line::from(""),
+        Line::from(Span::styled(
+            "    ► Press any key to retry the level ◄",
+            yellow_bold,
+        )),
+        Line::from(Span::styled("           Esc or q quits", dark_gray)),
+    ];
+
+    let mut lines = Vec::new();
+    lines.push(Line::from(""));
+    lines.push(header);
+    lines.push(Line::from(""));
+    lines.extend(skull_lines);
+    lines.push(stats);
+    lines.push(Line::from(""));
+    lines.push(lives_line);
+    lines.extend(footer);
+    lines.push(Line::from(""));
+
+    let body = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("☠ Defeated ☠"))
+        .wrap(Wrap { trim: true });
+
+    frame.render_widget(body, centered_rect(80, 60, frame.area()));
+}
+
 fn render_map(frame: &mut Frame<'_>, app: &App, area: Rect) {
     let block = Block::default().borders(Borders::ALL).title("Dungeon");
     let inner = block.inner(area);
@@ -356,6 +434,18 @@ fn render_map(frame: &mut Frame<'_>, app: &App, area: Rect) {
                     Style::default()
                         .fg(Color::Green)
                         .add_modifier(Modifier::BOLD),
+                ));
+                continue;
+            }
+
+            if app
+                .enemies
+                .iter()
+                .any(|e| e.position.x == x && e.position.y == y)
+            {
+                spans.push(Span::styled(
+                    "e",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ));
                 continue;
             }
@@ -408,6 +498,7 @@ fn render_sidebar(frame: &mut Frame<'_>, app: &App, area: Rect) {
         Line::from(format!("Level: {} / {}", app.level, TOTAL_LEVELS)),
         Line::from(format!("Time: {}", format_duration(app.elapsed))),
         Line::from(format!("Moves: {}", app.motion_count)),
+        Line::from(format!("Lives: {}", app.lives)),
         Line::from(format!("Unique: {}", app.unique_motions())),
         Line::from(""),
     ];
@@ -448,6 +539,7 @@ fn render_sidebar(frame: &mut Frame<'_>, app: &App, area: Rect) {
             PendingInput::Find => "Awaiting target for f",
             PendingInput::Till => "Awaiting target for t",
             PendingInput::Delete => "Awaiting second d",
+            PendingInput::GotoLine => "Awaiting second g",
         };
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
@@ -465,7 +557,12 @@ fn render_sidebar(frame: &mut Frame<'_>, app: &App, area: Rect) {
 fn phase_definitions() -> Vec<(Zone, &'static [VimMotion])> {
     const ZONE1: &[VimMotion] = &[VimMotion::H, VimMotion::J, VimMotion::K, VimMotion::L];
     const ZONE2: &[VimMotion] = &[VimMotion::W, VimMotion::B];
-    const ZONE3: &[VimMotion] = &[VimMotion::Zero, VimMotion::Dollar];
+    const ZONE3: &[VimMotion] = &[
+        VimMotion::Zero,
+        VimMotion::Dollar,
+        VimMotion::G,
+        VimMotion::GotoLine,
+    ];
     const ZONE4: &[VimMotion] = &[VimMotion::Find, VimMotion::Till];
     const ZONE5: &[VimMotion] = &[VimMotion::DeleteLine];
 
