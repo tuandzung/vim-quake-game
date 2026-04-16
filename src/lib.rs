@@ -1,3 +1,4 @@
+pub mod enemy;
 pub mod game;
 pub mod map;
 pub mod player;

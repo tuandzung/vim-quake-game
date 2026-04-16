@@ -7,7 +7,7 @@ use crate::map::Map;
 use crate::player::Player;
 
 pub const TRAIL_MAX: usize = 8;
-pub const TOTAL_LEVELS: usize = 2;
+pub const TOTAL_LEVELS: usize = 3;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Position {
@@ -80,6 +80,8 @@ pub enum VimMotion {
     Find,
     Till,
     DeleteLine,
+    G,
+    GotoLine,
 }
 
 impl VimMotion {
@@ -96,6 +98,8 @@ impl VimMotion {
             Self::Find => "f<char>",
             Self::Till => "t<char>",
             Self::DeleteLine => "dd",
+            Self::G => "G",
+            Self::GotoLine => "gg",
         }
     }
 
@@ -112,6 +116,8 @@ impl VimMotion {
             Self::Find => "Find char",
             Self::Till => "Till char",
             Self::DeleteLine => "Delete row obstacle",
+            Self::G => "Last row",
+            Self::GotoLine => "First row",
         }
     }
 
@@ -128,6 +134,8 @@ impl VimMotion {
             Self::Find => "Jump to the next matching tile character",
             Self::Till => "Stop one tile before the next matching character",
             Self::DeleteLine => "Turn the nearest obstacle on the row into floor",
+            Self::G => "Jump to the last passable tile on the bottom row",
+            Self::GotoLine => "Jump to the first passable tile on the top row",
         }
     }
 }
@@ -155,6 +163,7 @@ impl Direction {
 pub enum GameState {
     Playing,
     Won,
+    Lost,
     Quit,
 }
 
@@ -163,11 +172,20 @@ pub enum PendingInput {
     Find,
     Till,
     Delete,
+    GotoLine,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Enemy {
+    pub position: Position,
+    pub glyph: char,
 }
 
 pub struct App {
     pub map: Map,
     pub player: Player,
+    pub enemies: Vec<Enemy>,
+    pub lives: usize,
     pub game_state: GameState,
     pub started: bool,
     pub pending_input: Option<PendingInput>,
@@ -219,6 +237,8 @@ mod tests {
             (VimMotion::Find, "f<char>"),
             (VimMotion::Till, "t<char>"),
             (VimMotion::DeleteLine, "dd"),
+            (VimMotion::G, "G"),
+            (VimMotion::GotoLine, "gg"),
         ];
 
         for (motion, expected) in cases {
@@ -254,5 +274,33 @@ mod tests {
         let original = Position { x: 3, y: 7 };
         let _copied = original;
         assert_eq!(original.x, 3);
+    }
+
+    #[test]
+    fn new_motion_display_names() {
+        assert_eq!(VimMotion::G.display_name(), "Last row");
+        assert_eq!(VimMotion::GotoLine.display_name(), "First row");
+    }
+
+    #[test]
+    fn new_motion_descriptions_non_empty() {
+        assert!(!VimMotion::G.description().is_empty());
+        assert!(!VimMotion::GotoLine.description().is_empty());
+    }
+
+    #[test]
+    fn enemy_struct_fields() {
+        let enemy = Enemy {
+            position: Position { x: 5, y: 10 },
+            glyph: 'X',
+        };
+        assert_eq!(enemy.position.x, 5);
+        assert_eq!(enemy.position.y, 10);
+        assert_eq!(enemy.glyph, 'X');
+    }
+
+    #[test]
+    fn total_levels_is_three() {
+        assert_eq!(TOTAL_LEVELS, 3);
     }
 }
