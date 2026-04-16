@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::time::Instant;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
@@ -30,6 +31,7 @@ impl App {
                 "Explore the dungeon and practice the highlighted motions.",
             ),
             discovered_motions: Default::default(),
+            trail: VecDeque::new(),
         }
     }
 
@@ -143,6 +145,8 @@ fn parse_motion(key: KeyEvent) -> Option<ParsedInput> {
 }
 
 fn execute_motion(app: &mut App, motion: VimMotion, target: Option<char>) {
+    let old_pos = app.player.position;
+
     let activated = match motion {
         VimMotion::DeleteLine => {
             app.status_message = String::from("dd clears the nearest obstacle on your row.");
@@ -171,6 +175,13 @@ fn execute_motion(app: &mut App, motion: VimMotion, target: Option<char>) {
     app.motion_count += 1;
     app.discovered_motions.insert(motion);
     app.refresh_time();
+
+    if activated && old_pos != app.player.position {
+        app.trail.push_front(old_pos);
+        if app.trail.len() > crate::types::TRAIL_MAX {
+            app.trail.pop_back();
+        }
+    }
 
     if !activated {
         app.status_message
@@ -224,6 +235,7 @@ mod tests {
             motion_count: 0,
             status_message: String::new(),
             discovered_motions: Default::default(),
+            trail: VecDeque::new(),
         }
     }
 
@@ -250,6 +262,13 @@ mod tests {
         let app = App::new();
 
         assert!(app.start_time <= Instant::now());
+    }
+
+    #[test]
+    fn app_trail_starts_empty() {
+        let app = App::new();
+
+        assert!(app.trail.is_empty());
     }
 
     #[test]
@@ -304,6 +323,37 @@ mod tests {
         handle_event(&mut app, key_event(KeyCode::Char('h')));
 
         assert_eq!(app.player.position, Position { x: 1, y: 0 });
+    }
+
+    #[test]
+    fn app_trail_records_successful_motion() {
+        let mut app = started_app_with_map(test_map(5, 1), Position { x: 2, y: 0 });
+
+        handle_event(&mut app, key_event(KeyCode::Char('l')));
+
+        assert_eq!(app.trail.len(), 1);
+        assert_eq!(app.trail[0], Position { x: 2, y: 0 });
+    }
+
+    #[test]
+    fn app_trail_does_not_record_failed_motion() {
+        let mut app = started_app_with_map(test_map(5, 1), Position { x: 0, y: 0 });
+
+        handle_event(&mut app, key_event(KeyCode::Char('h')));
+
+        assert!(app.trail.is_empty());
+    }
+
+    #[test]
+    fn app_trail_caps_at_max() {
+        let mut app = started_app_with_map(test_map(20, 1), Position { x: 1, y: 0 });
+
+        for _ in 0..(crate::types::TRAIL_MAX + 2) {
+            handle_event(&mut app, key_event(KeyCode::Char('l')));
+            handle_event(&mut app, key_event(KeyCode::Char('h')));
+        }
+
+        assert!(app.trail.len() <= crate::types::TRAIL_MAX);
     }
 
     #[test]
