@@ -5,7 +5,7 @@ use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 
 use crate::map::Map;
 use crate::player::Player;
-use crate::types::{App, GameState, PendingInput, Tile, VimMotion};
+use crate::types::{App, Enemy, GameState, PendingInput, Tile, VimMotion};
 
 impl Default for App {
     fn default() -> Self {
@@ -20,6 +20,8 @@ impl App {
         Self {
             map,
             player,
+            enemies: Vec::new(),
+            lives: 3,
             game_state: GameState::Playing,
             started: false,
             pending_input: None,
@@ -54,9 +56,31 @@ impl App {
         self.level += 1;
         self.map = Map::level(self.level);
         self.player.position = self.map.start;
+        self.enemies = self
+            .map
+            .enemy_spawns
+            .iter()
+            .map(|&pos| Enemy::new(pos))
+            .collect();
         self.trail.clear();
         self.pending_input = None;
         self.status_message = format!("Level {} — The dungeon shifts around you...", self.level);
+    }
+
+    pub fn retry_level(&mut self) {
+        self.map = Map::level(self.level);
+        self.player.position = self.map.start;
+        self.enemies = self
+            .map
+            .enemy_spawns
+            .iter()
+            .map(|&pos| Enemy::new(pos))
+            .collect();
+        self.lives = 3;
+        self.trail.clear();
+        self.pending_input = None;
+        self.game_state = GameState::Playing;
+        self.status_message = format!("Level {} — Try again!", self.level);
     }
 }
 
@@ -88,6 +112,11 @@ fn handle_key_event(app: &mut App, key: KeyEvent) {
         return;
     }
 
+    if app.game_state == GameState::Lost {
+        app.retry_level();
+        return;
+    }
+
     if let Some(pending) = app.pending_input {
         app.pending_input = None;
         match pending {
@@ -108,6 +137,13 @@ fn handle_key_event(app: &mut App, key: KeyEvent) {
                     app.status_message = String::from("dd needs a second d. Command cancelled.");
                 }
             }
+            PendingInput::GotoLine => {
+                if let KeyCode::Char('g') = key.code {
+                    execute_motion(app, VimMotion::GotoLine, None);
+                } else {
+                    app.status_message = String::from("gg needs a second g. Command cancelled.");
+                }
+            }
         }
         return;
     }
@@ -126,6 +162,7 @@ fn handle_key_event(app: &mut App, key: KeyEvent) {
                 PendingInput::Delete => {
                     String::from("Press d again to break the nearest obstacle on this row.")
                 }
+                PendingInput::GotoLine => String::from("Press g again to jump to the first row."),
             };
         }
         None => {}
@@ -150,7 +187,35 @@ fn parse_motion(key: KeyEvent) -> Option<ParsedInput> {
         KeyCode::Char('f') => Some(ParsedInput::AwaitTarget(PendingInput::Find)),
         KeyCode::Char('t') => Some(ParsedInput::AwaitTarget(PendingInput::Till)),
         KeyCode::Char('d') => Some(ParsedInput::AwaitTarget(PendingInput::Delete)),
+        KeyCode::Char('G') => Some(ParsedInput::Immediate(VimMotion::G)),
+        KeyCode::Char('g') => Some(ParsedInput::AwaitTarget(PendingInput::GotoLine)),
         _ => None,
+    }
+}
+
+fn enemies_step(app: &mut App) {
+    let player_pos = app.player.position;
+    for enemy in &mut app.enemies {
+        enemy.step_toward_player(player_pos, &app.map);
+    }
+
+    let player_pos = app.player.position;
+    let mut i = 0;
+    while i < app.enemies.len() {
+        if app.enemies[i].position == player_pos {
+            app.enemies.remove(i);
+            if app.lives > 1 {
+                app.lives -= 1;
+                app.status_message = format!("Hit! {} lives remaining.", app.lives);
+            } else {
+                app.lives = 0;
+                app.game_state = GameState::Lost;
+                app.status_message = String::from("You were caught! Game over.");
+                return;
+            }
+        } else {
+            i += 1;
+        }
     }
 }
 
@@ -212,13 +277,18 @@ fn execute_motion(app: &mut App, motion: VimMotion, target: Option<char>) {
             app.elapsed = final_time;
             app.status_message = String::from("You conquered all levels of the dungeon!");
         }
+        return;
+    }
+
+    if activated && old_pos != app.player.position {
+        enemies_step(app);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Position, Zone};
+    use crate::types::{Enemy, Position, Zone};
     use crossterm::event::KeyModifiers;
     use std::time::Duration;
 
@@ -233,6 +303,7 @@ mod tests {
                 x: width - 1,
                 y: height - 1,
             },
+            enemy_spawns: vec![],
         }
     }
 
@@ -240,6 +311,8 @@ mod tests {
         App {
             map,
             player: Player::new(position),
+            enemies: Vec::new(),
+            lives: 3,
             game_state: GameState::Playing,
             started: true,
             pending_input: None,
@@ -451,7 +524,7 @@ mod tests {
     }
 
     #[test]
-    fn app_exit_on_level_2_triggers_win() {
+    fn app_exit_on_level_2_transitions_to_level_3() {
         let mut map = test_map(5, 1);
         map.set_tile(4, 0, Tile::Exit);
         map.exit = Position { x: 4, y: 0 };
@@ -460,8 +533,8 @@ mod tests {
 
         handle_event(&mut app, key_event(KeyCode::Char('l')));
 
-        assert_eq!(app.level, 2);
-        assert_eq!(app.game_state, GameState::Won);
+        assert_eq!(app.level, 3);
+        assert_eq!(app.game_state, GameState::Playing);
     }
 
     #[test]
@@ -537,5 +610,154 @@ mod tests {
 
         assert_eq!(app.level, 2);
         assert_eq!(app.player.position, app.map.start);
+    }
+
+    #[test]
+    fn app_g_jump_to_last_row() {
+        let mut app = started_app_with_map(test_map(5, 5), Position { x: 2, y: 2 });
+
+        handle_event(&mut app, key_event(KeyCode::Char('G')));
+
+        assert_eq!(app.player.position.y, 4);
+        assert_eq!(app.pending_input, None);
+    }
+
+    #[test]
+    fn app_gg_two_keys_jump_to_first_row() {
+        let mut app = started_app_with_map(test_map(5, 5), Position { x: 2, y: 4 });
+
+        handle_event(&mut app, key_event(KeyCode::Char('g')));
+        assert_eq!(app.pending_input, Some(PendingInput::GotoLine));
+
+        handle_event(&mut app, key_event(KeyCode::Char('g')));
+
+        assert_eq!(app.player.position.y, 0);
+        assert_eq!(app.pending_input, None);
+    }
+
+    #[test]
+    fn app_g_then_other_cancels() {
+        let mut app = started_app_with_map(test_map(5, 5), Position { x: 2, y: 2 });
+
+        handle_event(&mut app, key_event(KeyCode::Char('g')));
+        handle_event(&mut app, key_event(KeyCode::Char('x')));
+
+        assert_eq!(app.player.position, Position { x: 2, y: 2 });
+        assert_eq!(app.pending_input, None);
+        assert!(app.status_message.contains("cancelled"));
+    }
+
+    #[test]
+    fn app_lost_state_any_key_restarts_level() {
+        let mut app = started_app_with_map(test_map(5, 5), Position { x: 3, y: 3 });
+        app.level = 2;
+        app.game_state = GameState::Lost;
+        app.trail.push_front(Position { x: 2, y: 2 });
+
+        handle_event(&mut app, key_event(KeyCode::Char('h')));
+
+        assert_eq!(app.game_state, GameState::Playing);
+        assert_eq!(app.player.position, app.map.start);
+        assert!(app.trail.is_empty());
+        assert_eq!(app.level, 2);
+    }
+
+    #[test]
+    fn app_enemy_collision_decrements_lives_and_removes_enemy() {
+        let map = test_map(5, 5);
+        let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+        app.lives = 3;
+        app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
+
+        handle_event(&mut app, key_event(KeyCode::Char('h')));
+
+        assert_eq!(app.lives, 2);
+        assert_eq!(app.game_state, GameState::Playing);
+        assert!(app.status_message.contains("2 lives remaining"));
+        assert!(app.enemies.is_empty());
+    }
+
+    #[test]
+    fn app_enemy_collision_sets_lost_when_no_lives() {
+        let map = test_map(5, 5);
+        let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+        app.lives = 1;
+        app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
+
+        handle_event(&mut app, key_event(KeyCode::Char('h')));
+
+        assert_eq!(app.lives, 0);
+        assert_eq!(app.game_state, GameState::Lost);
+        assert!(app.status_message.contains("Game over"));
+        assert!(app.enemies.is_empty());
+    }
+
+    #[test]
+    fn app_advance_level_spawns_enemies_from_map() {
+        let mut map = test_map(5, 5);
+        map.set_tile(4, 0, Tile::Exit);
+        map.exit = Position { x: 4, y: 0 };
+        let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+        app.level = 2;
+
+        app.advance_level();
+
+        assert_eq!(app.level, 3);
+        let level3_map = Map::level(3);
+        assert_eq!(app.enemies.len(), level3_map.enemy_spawns.len());
+        for (enemy, spawn) in app.enemies.iter().zip(level3_map.enemy_spawns.iter()) {
+            assert_eq!(enemy.position, *spawn);
+        }
+    }
+
+    #[test]
+    fn app_advance_level_preserves_lives() {
+        let mut map = test_map(5, 5);
+        map.set_tile(4, 0, Tile::Exit);
+        map.exit = Position { x: 4, y: 0 };
+        let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+        app.level = 1;
+        app.lives = 2;
+
+        app.advance_level();
+
+        assert_eq!(app.lives, 2);
+    }
+
+    #[test]
+    fn app_advance_level_level_1_to_2_has_no_enemies() {
+        let map = Map::level(1);
+        assert!(map.enemy_spawns.is_empty());
+        let map2 = Map::level(2);
+        assert!(map2.enemy_spawns.is_empty());
+    }
+
+    #[test]
+    fn app_advance_level_level_2_to_3_spawns_enemies() {
+        let mut map = test_map(5, 5);
+        map.set_tile(4, 0, Tile::Exit);
+        map.exit = Position { x: 4, y: 0 };
+        let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+        app.level = 2;
+
+        handle_event(&mut app, key_event(KeyCode::Char('l')));
+
+        assert_eq!(app.level, 3);
+        assert!(!app.enemies.is_empty());
+        assert_eq!(app.enemies.len(), Map::level(3).enemy_spawns.len());
+    }
+
+    #[test]
+    fn app_advance_level_preserves_motion_count() {
+        let mut map = test_map(5, 5);
+        map.set_tile(4, 0, Tile::Exit);
+        map.exit = Position { x: 4, y: 0 };
+        let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+        app.level = 1;
+        app.motion_count = 42;
+
+        app.advance_level();
+
+        assert_eq!(app.motion_count, 42);
     }
 }
