@@ -2,6 +2,15 @@
 
 A terminal-based roguelike dungeon game that teaches Vim motions through gameplay. Navigate an 80×40 dungeon using real Vim keybindings to reach the exit.
 
+## Features
+
+- **5 zone-gated areas** with distinct color palettes (gray → cyan → magenta → red → gold)
+- **Figlet-style ASCII art** title screen with motion reference
+- **Player trail** — fading green dots show your recent path
+- **Animated exit glow** — pulsing `►` beacon guides you to the goal
+- **Depth-aware walls** — glyph variation (█▓▒#) based on neighbor analysis
+- **Victory screen** — ASCII trophy, zone-by-zone completion breakdown with progress bars, and motion mastery rating
+
 ## Motions
 
 | Key | Motion | Zone |
@@ -23,8 +32,8 @@ cargo run
 ## Controls
 
 - Move with the Vim motions listed above
-- `q` — quit
-- `Enter` — start from title screen
+- `q` / `Esc` — quit
+- Any key — start from title screen
 
 Reach the exit (`>`) to win.
 
@@ -32,7 +41,7 @@ Reach the exit (`>`) to win.
 
 ```bash
 cargo build    # Compile
-cargo test     # Run 55 inline tests
+cargo test     # Run 62 inline tests
 cargo run      # Play
 ```
 
@@ -40,11 +49,11 @@ cargo run      # Play
 
 ```
 src/main.rs     Terminal setup + event loop
-src/game.rs     App state, event handling, win condition
+src/game.rs     App state, event handling, win condition, trail tracking
 src/player.rs   Player + 11 motion implementations
 src/map.rs      80×40 grid, 5 zones, corridor carving
-src/renderer.rs ratatui TUI rendering
-src/types.rs    Shared types (Position, Tile, Zone, VimMotion, …)
+src/renderer.rs ratatui TUI rendering (zone colors, trail, glow, ASCII art)
+src/types.rs    Shared types (Position, Tile, Zone, VimMotion, App, …)
 src/lib.rs      Module re-exports
 ```
 
