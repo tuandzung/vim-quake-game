@@ -3,8 +3,8 @@ use bracket_lib::prelude::*;
 use crate::types::{App, GameState, PendingInput, Position, Tile, VimMotion, Zone, TOTAL_LEVELS};
 use crate::visibility::VisibilityState;
 
-const SCREEN_WIDTH: u32 = 80;
-const SCREEN_HEIGHT: u32 = 50;
+pub const SCREEN_WIDTH: u32 = 80;
+pub const SCREEN_HEIGHT: u32 = 50;
 
 pub fn render(ctx: &mut BTerm, app: &App) {
     ctx.cls();
@@ -54,7 +54,7 @@ fn render_resize_notice(ctx: &mut BTerm, width: u32, height: u32) {
     }
 }
 
-fn screen_meets_minimum_size(width: u32, height: u32) -> bool {
+pub fn screen_meets_minimum_size(width: u32, height: u32) -> bool {
     width >= SCREEN_WIDTH && height >= SCREEN_HEIGHT
 }
 
@@ -165,7 +165,7 @@ fn render_map_viewport(ctx: &mut BTerm, app: &App, map_width: i32) {
     }
 }
 
-fn visual_player_position(app: &App) -> Position {
+pub fn visual_player_position(app: &App) -> Position {
     let (x, y) = app
         .player_animation
         .map(|animation| animation.current_position())
@@ -178,7 +178,7 @@ fn visual_player_position(app: &App) -> Position {
     }
 }
 
-fn visual_enemy_positions(app: &App) -> Vec<Position> {
+pub fn visual_enemy_positions(app: &App) -> Vec<Position> {
     app.enemies
         .iter()
         .enumerate()
@@ -319,16 +319,16 @@ fn render_sidebar(ctx: &mut BTerm, app: &App, sidebar_x: i32) {
     render_minimap(ctx, app, sidebar_x, y, &mut y);
 }
 
-const MINIMAP_WIDTH: usize = 18;
-const MINIMAP_HEIGHT: usize = 9;
+pub const MINIMAP_WIDTH: usize = 18;
+pub const MINIMAP_HEIGHT: usize = 9;
 
-fn minimap_map_coords(mx: usize, my: usize) -> (usize, usize) {
+pub fn minimap_map_coords(mx: usize, my: usize) -> (usize, usize) {
     let map_x = (mx as f64 * 80.0 / MINIMAP_WIDTH as f64) as usize;
     let map_y = (my as f64 * 40.0 / MINIMAP_HEIGHT as f64) as usize;
     (map_x.min(79), map_y.min(39))
 }
 
-fn minimap_player_pos(player_x: usize, player_y: usize) -> (i32, i32) {
+pub fn minimap_player_pos(player_x: usize, player_y: usize) -> (i32, i32) {
     let mm_x = (player_x as f64 * MINIMAP_WIDTH as f64 / 80.0) as i32;
     let mm_y = (player_y as f64 * MINIMAP_HEIGHT as f64 / 40.0) as i32;
     (
@@ -663,19 +663,19 @@ fn render_lost(ctx: &mut BTerm, app: &App) {
     ctx.print_color(center_x(18), y, dark_gray, black, "Esc or q quits");
 }
 
-fn center_x(text_len: usize) -> i32 {
+pub fn center_x(text_len: usize) -> i32 {
     center_x_for(SCREEN_WIDTH, text_len)
 }
 
-fn center_x_for(screen_width: u32, text_len: usize) -> i32 {
+pub fn center_x_for(screen_width: u32, text_len: usize) -> i32 {
     (screen_width as i32 - text_len as i32).max(0) / 2
 }
 
-fn center_y_for(screen_height: u32, content_height: usize) -> i32 {
+pub fn center_y_for(screen_height: u32, content_height: usize) -> i32 {
     (screen_height as i32 - content_height as i32).max(0) / 2
 }
 
-fn rgb8(r: u8, g: u8, b: u8) -> RGB {
+pub fn rgb8(r: u8, g: u8, b: u8) -> RGB {
     RGB {
         r: r as f32 / 255.0,
         g: g as f32 / 255.0,
@@ -683,7 +683,7 @@ fn rgb8(r: u8, g: u8, b: u8) -> RGB {
     }
 }
 
-fn dim_color(color: RGB, factor: f32) -> RGB {
+pub fn dim_color(color: RGB, factor: f32) -> RGB {
     RGB {
         r: (color.r * factor).min(1.0),
         g: (color.g * factor).min(1.0),
@@ -691,7 +691,7 @@ fn dim_color(color: RGB, factor: f32) -> RGB {
     }
 }
 
-fn tile_fog_appearance(
+pub fn tile_fog_appearance(
     tile: Tile,
     zone: Zone,
     vis: VisibilityState,
@@ -725,7 +725,7 @@ pub fn format_duration(duration: std::time::Duration) -> String {
     format!("{minutes:02}:{seconds:02}")
 }
 
-fn phase_definitions() -> Vec<(Zone, &'static [VimMotion])> {
+pub fn phase_definitions() -> Vec<(Zone, &'static [VimMotion])> {
     const ZONE1: &[VimMotion] = &[VimMotion::H, VimMotion::J, VimMotion::K, VimMotion::L];
     const ZONE2: &[VimMotion] = &[VimMotion::W, VimMotion::B];
     const ZONE3: &[VimMotion] = &[
@@ -799,7 +799,7 @@ pub fn wall_display_glyph(x: usize, y: usize, map: &crate::map::Map) -> char {
     }
 }
 
-fn exit_glow(elapsed: std::time::Duration) -> (char, RGB) {
+pub fn exit_glow(elapsed: std::time::Duration) -> (char, RGB) {
     let phase = (elapsed.as_millis() % 1000) as f64 / 1000.0;
     let pulse = (phase * std::f64::consts::PI * 2.0).sin() * 0.5 + 0.5;
     let r = (200.0 + 55.0 * pulse) as u8;
@@ -808,7 +808,7 @@ fn exit_glow(elapsed: std::time::Duration) -> (char, RGB) {
     (glyph, rgb8(r, g, 0))
 }
 
-fn trail_color(index: usize, total: usize) -> (char, RGB) {
+pub fn trail_color(index: usize, total: usize) -> (char, RGB) {
     let fade = if total <= 1 {
         1.0
     } else {
@@ -818,7 +818,7 @@ fn trail_color(index: usize, total: usize) -> (char, RGB) {
     ('·', rgb8(60, g, 60))
 }
 
-fn obstacle_display(elapsed: std::time::Duration) -> (char, RGB) {
+pub fn obstacle_display(elapsed: std::time::Duration) -> (char, RGB) {
     let visible = (elapsed.as_millis() % 1000) < 500;
     if visible {
         ('▒', rgb8(255, 100, 100))
@@ -827,7 +827,7 @@ fn obstacle_display(elapsed: std::time::Duration) -> (char, RGB) {
     }
 }
 
-fn motion_mastery(total_discovered: usize) -> (&'static str, RGB) {
+pub fn motion_mastery(total_discovered: usize) -> (&'static str, RGB) {
     match total_discovered {
         0..=3 => ("Novice", rgb8(205, 127, 50)),
         4..=6 => ("Apprentice", rgb8(192, 192, 192)),
@@ -838,429 +838,3 @@ fn motion_mastery(total_discovered: usize) -> (&'static str, RGB) {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::animation::{AnimationState, ENEMY_MOVE_MS};
-    use crate::map::Map;
-    use crate::player::Player;
-    use crate::types::{App, GameState, Position, Tile, Zone};
-    use crate::visibility::VisibilityMap;
-    use std::collections::VecDeque;
-    use std::time::Duration;
-    use std::time::Instant;
-
-    fn test_app() -> App {
-        let map = Map::new();
-        App {
-            player: Player::new(map.start),
-            visibility: VisibilityMap::new(map.width, map.height),
-            map,
-            player_animation: None,
-            enemy_animations: Vec::new(),
-            input_queue: Vec::new(),
-            enemies: Vec::new(),
-            lives: 3,
-            game_state: GameState::Playing,
-            started: true,
-            pending_input: None,
-            start_time: Instant::now(),
-            elapsed: Duration::default(),
-            final_time: None,
-            motion_count: 0,
-            status_message: String::new(),
-            discovered_motions: Default::default(),
-            trail: VecDeque::new(),
-            level: 1,
-            audio: crate::audio::AudioManager::new(),
-        }
-    }
-
-    fn approx_eq(a: f32, b: f32) -> bool {
-        (a - b).abs() < 0.01
-    }
-
-    #[test]
-    fn zone_wall_colors() {
-        assert!(approx_eq(zone_wall_color(Zone::Zone1).r, 170.0 / 255.0));
-        assert!(approx_eq(zone_wall_color(Zone::Zone2).b, 230.0 / 255.0));
-        assert!(approx_eq(zone_wall_color(Zone::Zone3).r, 190.0 / 255.0));
-        assert!(approx_eq(zone_wall_color(Zone::Zone4).r, 220.0 / 255.0));
-        assert!(approx_eq(zone_wall_color(Zone::Zone5).g, 210.0 / 255.0));
-    }
-
-    #[test]
-    fn zone_floor_colors() {
-        assert!(approx_eq(zone_floor_color(Zone::Zone1).r, 160.0 / 255.0));
-        assert_eq!(zone_floor_color(Zone::Zone2), RGB::named(CYAN));
-        assert!(approx_eq(zone_floor_color(Zone::Zone3).r, 1.0));
-        assert!(approx_eq(zone_floor_color(Zone::Zone4).g, 100.0 / 255.0));
-        assert_eq!(zone_floor_color(Zone::Zone5), RGB::named(YELLOW));
-    }
-
-    #[test]
-    fn zone_accent_colors() {
-        assert_eq!(zone_accent_color(Zone::Zone1), RGB::named(WHITE));
-        assert_eq!(zone_accent_color(Zone::Zone2), RGB::named(BLUE));
-        assert_eq!(zone_accent_color(Zone::Zone3), RGB::named(MAGENTA));
-        assert_eq!(zone_accent_color(Zone::Zone4), RGB::named(RED));
-        assert_eq!(zone_accent_color(Zone::Zone5), RGB::named(YELLOW));
-    }
-
-    #[test]
-    fn wall_glyph_solid_when_isolated() {
-        let map = Map::new();
-        assert_eq!(wall_display_glyph(5, 5, &map), '█');
-    }
-
-    #[test]
-    fn wall_glyph_medium_with_one_floor_neighbor() {
-        let mut map = Map::new();
-        map.set_tile(4, 5, Tile::Floor);
-        assert_eq!(wall_display_glyph(5, 5, &map), '▓');
-    }
-
-    #[test]
-    fn wall_glyph_shallow_with_two_floor_neighbors() {
-        let mut map = Map::new();
-        map.set_tile(4, 5, Tile::Floor);
-        map.set_tile(6, 5, Tile::Floor);
-        assert_eq!(wall_display_glyph(5, 5, &map), '▒');
-    }
-
-    #[test]
-    fn wall_glyph_edge_with_three_floor_neighbors() {
-        let mut map = Map::new();
-        map.set_tile(4, 5, Tile::Floor);
-        map.set_tile(6, 5, Tile::Floor);
-        map.set_tile(5, 4, Tile::Floor);
-        assert_eq!(wall_display_glyph(5, 5, &map), '#');
-    }
-
-    #[test]
-    fn format_duration_zero() {
-        assert_eq!(format_duration(Duration::from_secs(0)), "00:00");
-    }
-
-    #[test]
-    fn format_duration_one_minute() {
-        assert_eq!(format_duration(Duration::from_secs(60)), "01:00");
-    }
-
-    #[test]
-    fn format_duration_mixed() {
-        assert_eq!(format_duration(Duration::from_secs(125)), "02:05");
-    }
-
-    #[test]
-    fn format_duration_large() {
-        assert_eq!(format_duration(Duration::from_secs(3661)), "61:01");
-    }
-
-    #[test]
-    fn phase_definitions_has_five_zones() {
-        assert_eq!(phase_definitions().len(), 5);
-    }
-
-    #[test]
-    fn phase_definitions_cover_all_13_motions() {
-        let total: usize = phase_definitions().iter().map(|(_, m)| m.len()).sum();
-        assert_eq!(total, 13);
-    }
-
-    #[test]
-    fn phase_definitions_zone1_is_basic() {
-        let defs = phase_definitions();
-        assert_eq!(defs[0].0, Zone::Zone1);
-        assert!(defs[0].1.contains(&VimMotion::H));
-        assert!(defs[0].1.contains(&VimMotion::J));
-        assert!(defs[0].1.contains(&VimMotion::K));
-        assert!(defs[0].1.contains(&VimMotion::L));
-    }
-
-    #[test]
-    fn phase_definitions_zone5_is_delete() {
-        let defs = phase_definitions();
-        assert_eq!(defs[4].0, Zone::Zone5);
-        assert_eq!(defs[4].1, &[VimMotion::DeleteLine]);
-    }
-
-    #[test]
-    fn exit_glow_returns_valid_glyph() {
-        let (glyph, color) = exit_glow(Duration::from_millis(0));
-        assert!(glyph == '>' || glyph == '►');
-        assert!(color.r > 0.0);
-        assert!(color.g > 0.0);
-        assert_eq!(color.b, 0.0);
-    }
-
-    #[test]
-    fn trail_color_newest_is_brightest() {
-        let (glyph, color) = trail_color(0, 5);
-        assert_eq!(glyph, '·');
-        assert!(color.g > 0.0);
-    }
-
-    #[test]
-    fn trail_color_single_entry_full_brightness() {
-        let (_, color) = trail_color(0, 1);
-        assert!(approx_eq(color.g, 230.0 / 255.0));
-    }
-
-    #[test]
-    fn trail_color_oldest_is_dimmer() {
-        let (_, newest) = trail_color(0, 5);
-        let (_, oldest) = trail_color(4, 5);
-        assert!(newest.g > oldest.g);
-    }
-
-    #[test]
-    fn obstacle_visible_in_first_half() {
-        let (glyph, color) = obstacle_display(Duration::from_millis(200));
-        assert_eq!(glyph, '▒');
-        assert!(color.r > 0.0);
-    }
-
-    #[test]
-    fn obstacle_hidden_in_second_half() {
-        let (glyph, color) = obstacle_display(Duration::from_millis(700));
-        assert_eq!(glyph, ' ');
-        assert_eq!(color.r, 0.0);
-    }
-
-    #[test]
-    fn motion_mastery_ratings() {
-        assert_eq!(motion_mastery(0).0, "Novice");
-        assert_eq!(motion_mastery(3).0, "Novice");
-        assert_eq!(motion_mastery(4).0, "Apprentice");
-        assert_eq!(motion_mastery(6).0, "Apprentice");
-        assert_eq!(motion_mastery(7).0, "Journeyman");
-        assert_eq!(motion_mastery(9).0, "Journeyman");
-        assert_eq!(motion_mastery(10).0, "Adept");
-        assert_eq!(motion_mastery(11).0, "Adept");
-        assert_eq!(motion_mastery(12).0, "Expert");
-        assert_eq!(motion_mastery(13).0, "Master");
-    }
-
-    #[test]
-    fn center_x_even_text() {
-        assert_eq!(center_x(10), 35);
-    }
-
-    #[test]
-    fn center_x_full_width() {
-        assert_eq!(center_x(80), 0);
-    }
-
-    #[test]
-    fn center_x_zero() {
-        assert_eq!(center_x(0), 40);
-    }
-
-    #[test]
-    fn center_x_for_clamps_when_text_is_wider_than_screen() {
-        assert_eq!(center_x_for(10, 20), 0);
-    }
-
-    #[test]
-    fn center_y_for_clamps_when_content_is_taller_than_screen() {
-        assert_eq!(center_y_for(2, 5), 0);
-    }
-
-    #[test]
-    fn screen_meets_minimum_size_accepts_required_dimensions() {
-        assert!(screen_meets_minimum_size(SCREEN_WIDTH, SCREEN_HEIGHT));
-    }
-
-    #[test]
-    fn screen_meets_minimum_size_rejects_small_dimensions() {
-        assert!(!screen_meets_minimum_size(SCREEN_WIDTH - 1, SCREEN_HEIGHT));
-        assert!(!screen_meets_minimum_size(SCREEN_WIDTH, SCREEN_HEIGHT - 1));
-    }
-
-    #[test]
-    fn rgb8_converts_correctly() {
-        let c = rgb8(255, 0, 128);
-        assert!(approx_eq(c.r, 1.0));
-        assert!(approx_eq(c.g, 0.0));
-        assert!(approx_eq(c.b, 128.0 / 255.0));
-    }
-
-    #[test]
-    fn visual_enemy_positions_use_active_animation() {
-        let mut app = test_app();
-        app.enemies.push(crate::types::Enemy {
-            position: Position { x: 4, y: 2 },
-            glyph: 'e',
-        });
-        let mut animation = AnimationState::new(ENEMY_MOVE_MS, (2.0, 2.0), (4.0, 2.0));
-        animation.update(ENEMY_MOVE_MS / 2.0);
-        app.enemy_animations.push((0, animation));
-
-        let positions = visual_enemy_positions(&app);
-
-        assert_eq!(positions, vec![Position { x: 3, y: 2 }]);
-    }
-
-    #[test]
-    fn dim_color_reduces_components() {
-        let original = RGB {
-            r: 1.0,
-            g: 0.5,
-            b: 0.0,
-        };
-        let dimmed = dim_color(original, 0.3);
-        assert!(approx_eq(dimmed.r, 0.3));
-        assert!(approx_eq(dimmed.g, 0.15));
-        assert!(approx_eq(dimmed.b, 0.0));
-    }
-
-    #[test]
-    fn dim_color_clamps_to_one() {
-        let color = RGB {
-            r: 2.0,
-            g: 2.0,
-            b: 2.0,
-        };
-        let dimmed = dim_color(color, 1.0);
-        assert!(approx_eq(dimmed.r, 1.0));
-        assert!(approx_eq(dimmed.g, 1.0));
-        assert!(approx_eq(dimmed.b, 1.0));
-    }
-
-    #[test]
-    fn fog_hidden_tile_renders_blank() {
-        let result = tile_fog_appearance(
-            Tile::Floor,
-            Zone::Zone1,
-            VisibilityState::Hidden,
-            Duration::from_millis(0),
-            '#',
-        );
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn fog_explored_tile_renders_dim() {
-        let result = tile_fog_appearance(
-            Tile::Floor,
-            Zone::Zone1,
-            VisibilityState::Explored,
-            Duration::from_millis(0),
-            '#',
-        );
-        let (glyph, color) = result.expect("explored tile should have appearance");
-        assert_eq!(glyph, '.');
-        let full = zone_floor_color(Zone::Zone1);
-        assert!(color.r < full.r || approx_eq(color.r, full.r * 0.5));
-        assert!(color.g < full.g || approx_eq(color.g, full.g * 0.5));
-        assert!(color.b < full.b || approx_eq(color.b, full.b * 0.5));
-    }
-
-    #[test]
-    fn fog_visible_tile_full_color() {
-        let result = tile_fog_appearance(
-            Tile::Wall,
-            Zone::Zone2,
-            VisibilityState::Visible,
-            Duration::from_millis(0),
-            '▓',
-        );
-        let (glyph, color) = result.expect("visible tile should have appearance");
-        assert_eq!(glyph, '▓');
-        assert_eq!(color, zone_wall_color(Zone::Zone2));
-    }
-
-    #[test]
-    fn fog_enemy_not_visible_in_explored() {
-        let mut vis = VisibilityMap::new(80, 40);
-        let pos = Position { x: 10, y: 10 };
-        vis.set(pos, VisibilityState::Explored);
-
-        assert_eq!(vis.get(pos), VisibilityState::Explored);
-        assert_ne!(vis.get(pos), VisibilityState::Visible);
-    }
-
-    #[test]
-    fn minimap_scaling_maps_corners_correctly() {
-        let (x0, y0) = minimap_map_coords(0, 0);
-        assert_eq!(x0, 0);
-        assert_eq!(y0, 0);
-
-        let (xn, yn) = minimap_map_coords(MINIMAP_WIDTH - 1, MINIMAP_HEIGHT - 1);
-        assert!(xn < 80, "map x should be < 80, got {xn}");
-        assert!(yn < 40, "map y should be < 40, got {yn}");
-    }
-
-    #[test]
-    fn minimap_scaling_covers_full_map() {
-        let (x_last, _) = minimap_map_coords(MINIMAP_WIDTH - 1, 0);
-        assert!(
-            x_last >= 75,
-            "rightmost minimap column should reach near x=80, got {x_last}"
-        );
-
-        let (_, y_last) = minimap_map_coords(0, MINIMAP_HEIGHT - 1);
-        assert!(
-            y_last >= 35,
-            "bottom minimap row should reach near y=40, got {y_last}"
-        );
-    }
-
-    #[test]
-    fn minimap_hidden_tile_is_blank() {
-        let mut app = test_app();
-        let pos = Position { x: 10, y: 10 };
-        app.map.set_tile(10, 10, Tile::Floor);
-        assert_eq!(app.visibility.get(pos), VisibilityState::Hidden);
-    }
-
-    #[test]
-    fn minimap_player_position_at_start() {
-        let app = test_app();
-        let (px, py) = minimap_player_pos(app.player.position.x, app.player.position.y);
-        assert!(
-            px >= 0 && px < MINIMAP_WIDTH as i32,
-            "player minimap x should be in range, got {px}"
-        );
-        assert!(
-            py >= 0 && py < MINIMAP_HEIGHT as i32,
-            "player minimap y should be in range, got {py}"
-        );
-    }
-
-    #[test]
-    fn minimap_player_position_at_exit() {
-        let (px, py) = minimap_player_pos(76, 36);
-        assert!(
-            px >= 0 && px < MINIMAP_WIDTH as i32,
-            "player minimap x at exit should be in range, got {px}"
-        );
-        assert!(
-            py >= 0 && py < MINIMAP_HEIGHT as i32,
-            "player minimap y at exit should be in range, got {py}"
-        );
-        assert_eq!(px, MINIMAP_WIDTH as i32 - 1);
-        assert_eq!(py, MINIMAP_HEIGHT as i32 - 1);
-    }
-
-    #[test]
-    fn minimap_player_position_at_origin() {
-        let (px, py) = minimap_player_pos(0, 0);
-        assert_eq!(px, 0);
-        assert_eq!(py, 0);
-    }
-
-    #[test]
-    fn minimap_scaling_center_cell() {
-        let (cx, cy) = minimap_map_coords(MINIMAP_WIDTH / 2, MINIMAP_HEIGHT / 2);
-        assert!(
-            cx > 30 && cx < 50,
-            "center minimap cell should map near map center, got x={cx}"
-        );
-        assert!(
-            cy > 15 && cy < 25,
-            "center minimap cell should map near map center, got y={cy}"
-        );
-    }
-}
