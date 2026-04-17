@@ -3,22 +3,22 @@
 
 # src
 
-All application source code and inline tests for vim-quake.
+All application source code for vim-quake. Tests are in the `tests/` directory (integration tests).
 
 ## Key Files
 | File | Lines | Role |
 |------|-------|------|
 | `main.rs` | 32 | Binary entry — bracket-lib setup, event loop, delegates to game/renderer |
 | `lib.rs` | 9 | Library root — `pub mod` re-exports all modules |
-| `game.rs` | 1470 | `App` state, `handle_key`/`tick`, `parse_motion`, `execute_motion`, `enemies_step`, win/loss/retry, trail, audio dispatch |
-| `player.rs` | 521 | `Player` struct + 13 motion impls (h/j/k/l/w/b/0/$/G/gg/f/t/dd) |
-| `map.rs` | 714 | `Map` struct, 80×40 grid, 5 zones, 3 levels (`carve_level`, `build_level_2/3`), enemy spawn points |
-| `renderer.rs` | 1266 | bracket-lib rendering — title/gameplay/win/lost screens, viewport, sidebar, minimap, zone colors |
-| `types.rs` | 504 | Position, Tile, Zone, VimMotion, Direction, Enemy, GameState, App, RenderGrid, ViewModel, ScreenModel |
-| `animation.rs` | 491 | `GameClock` trait, `RealClock`/`TestClock`, `AnimationState`, `AnimationTimer`, `Interpolator` |
-| `visibility.rs` | 519 | `VisibilityMap` with `compute_fov`, `VisibilityState` (Hidden/Explored/Visible) |
-| `enemy.rs` | 244 | `Enemy` struct with BFS `step_toward_player` |
-| `audio.rs` | 256 | `AudioManager` + `SoundEffect` enum, graceful no-op fallback |
+| `game.rs` | 458 | `App` state, `handle_key`/`tick`, `parse_motion`, `execute_motion`, `enemies_step`, win/loss/retry, trail, audio dispatch |
+| `player.rs` | 223 | `Player` struct + 13 motion impls (h/j/k/l/w/b/0/$/G/gg/f/t/dd) |
+| `map.rs` | 332 | `Map` struct, 80×40 grid, 5 zones, 3 levels (`carve_level`, `build_level_2/3`), enemy spawn points |
+| `renderer.rs` | 840 | bracket-lib rendering — title/gameplay/win/lost screens, viewport, sidebar, minimap, zone colors |
+| `types.rs` | 308 | Position, Tile, Zone, VimMotion, Direction, Enemy, GameState, App, RenderGrid, ViewModel, ScreenModel |
+| `animation.rs` | 160 | `GameClock` trait, `RealClock`/`TestClock`, `AnimationState`, `AnimationTimer`, `Interpolator` |
+| `visibility.rs` | 118 | `VisibilityMap` with `compute_fov`, `VisibilityState` (Hidden/Explored/Visible) |
+| `enemy.rs` | 91 | `Enemy` struct with BFS `step_toward_player` |
+| `audio.rs` | 56 | `AudioManager` + `SoundEffect` enum, graceful no-op fallback |
 
 ## Where To Look
 | Task | File | What to change |
@@ -59,22 +59,22 @@ lib.rs        ← main.rs (implicit)
 - Audio: disabled by default; `play()` no-ops when disabled; `SoundEffect` enum in audio.rs.
 
 ## Tests
-275 inline tests across 9 files (`#[cfg(test)] mod tests` at bottom):
+275 integration tests in `tests/` directory (no inline tests in src/):
 | File | Tests | Coverage |
 |------|-------|----------|
-| `game.rs` | 72 | Motions, pending input, animations, input queue, level transitions, enemies, audio, trail, visibility, win/loss/retry |
-| `renderer.rs` | 44 | Zone colors, wall glyphs, duration formatting, phases, exit glow, trail colors, minimap, fog, centering |
-| `map.rs` | 33 | Dimensions, tiles, passability, zones, corridors, obstacles, 3 levels, reachability, enemy spawns |
-| `animation.rs` | 29 | Timer progress, interpolation, easing, AnimationState, TestClock determinism |
-| `visibility.rs` | 25 | FOV center, wall blocking, radius, explored persistence, reset, corridors, symmetry, edge cases |
-| `player.rs` | 25 | All 13 motions + boundaries + motion recording |
-| `types.rs` | 21 | Tile glyphs, motion labels/names/descriptions, zone titles, direction deltas, RenderGrid, ViewModel, Enemy |
-| `audio.rs` | 16 | Manager lifecycle, play no-op, enable/disable, rapid play, sound variants |
-| `enemy.rs` | 10 | BFS movement, diagonal, walls, adjacency, corridors, shortest path |
+| `tests/game.rs` | 72 | Motions, pending input, animations, input queue, level transitions, enemies, audio, trail, visibility, win/loss/retry |
+| `tests/renderer.rs` | 44 | Zone colors, wall glyphs, duration formatting, phases, exit glow, trail colors, minimap, fog, centering |
+| `tests/map.rs` | 33 | Dimensions, tiles, passability, zones, corridors, obstacles, 3 levels, reachability, enemy spawns |
+| `tests/animation.rs` | 29 | Timer progress, interpolation, easing, AnimationState, TestClock determinism |
+| `tests/visibility.rs` | 25 | FOV center, wall blocking, radius, explored persistence, reset, corridors, symmetry, edge cases |
+| `tests/player.rs` | 25 | All 13 motions + boundaries + motion recording |
+| `tests/types.rs` | 21 | Tile glyphs, motion labels/names/descriptions, zone titles, direction deltas, RenderGrid, ViewModel, Enemy |
+| `tests/audio.rs` | 16 | Manager lifecycle, play no-op, enable/disable, rapid play, sound variants |
+| `tests/enemy.rs` | 10 | BFS movement, diagonal, walls, adjacency, corridors, shortest path |
 | `main.rs` | 0 | No tests (thin wrapper) |
 | `lib.rs` | 0 | No tests (re-exports only) |
 
-Per-file test helpers: `test_map(w,h)`, `started_app_with_map(map,pos)`, `key_event(code)`, `assert_approx_eq()`, `tick_timer()`, `tick_state()`.
+Shared test helpers in `tests/common/mod.rs`: `test_map(w,h)`, `started_app_with_map(map,pos)`, `test_app()`, `assert_approx_eq()`, `approx_eq()`, `tick_timer()`, `tick_state()`, `all_transparent()`, `with_walls()`, `with_transparent_tiles()`.
 
 ## Notes
 - Map defaults: start (2,2), exit (76,36). Zones: 16 columns each.

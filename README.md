@@ -52,7 +52,7 @@ Reach the exit (`>`) on each level. Complete all 3 levels to win. Lose all lives
 
 ```bash
 cargo build    # Compile
-cargo test     # Run 275 inline tests
+cargo test     # Run 275 integration tests
 cargo run      # Play
 ```
 

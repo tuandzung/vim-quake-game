@@ -8,7 +8,8 @@ Terminal-based roguelike dungeon game (Rust + bracket-lib) teaching Vim motions 
 ## Structure
 ```
 vim-quake/
-├── src/          # All source + inline tests (see src/AGENTS.md)
+├── src/          # Application source code (see src/AGENTS.md)
+├── tests/        # Integration tests — 275 tests across 9 files (see tests/AGENTS.md)
 ├── examples/     # Spike/prototype code (spike.rs)
 ├── Cargo.toml    # Edition 2024, deps: anyhow (unused), bracket-lib
 ├── Cargo.lock
@@ -19,15 +20,15 @@ vim-quake/
 ## Architecture
 ```
 main.rs       → bracket-lib setup + event loop (32 lines)
-game.rs       → App state, event handling, motion dispatch, enemy turns, win/loss, trail, audio (1470 lines)
-player.rs     → Player + 13 motion implementations (521 lines)
-map.rs        → 80×40 grid, 5 zones, 3 dungeon levels, corridor carving, enemy spawns (714 lines)
-renderer.rs   → bracket-lib rendering: title, viewport, sidebar, minimap, win/loss screens, ASCII art (1266 lines)
-types.rs      → Position, Tile, Zone, VimMotion, Direction, Enemy, App, RenderGrid, ViewModel (504 lines)
-animation.rs  → GameClock, AnimationState, AnimationTimer, Interpolator (easing) (491 lines)
-visibility.rs → VisibilityMap with FOV (explored/visible/hidden states) (519 lines)
-enemy.rs      → Enemy struct with BFS pathfinding toward player (244 lines)
-audio.rs      → AudioManager with SoundEffect enum, graceful fallback (256 lines)
+game.rs       → App state, event handling, motion dispatch, enemy turns, win/loss, trail, audio (458 lines)
+player.rs     → Player + 13 motion implementations (223 lines)
+map.rs        → 80×40 grid, 5 zones, 3 dungeon levels, corridor carving, enemy spawns (332 lines)
+renderer.rs   → bracket-lib rendering: title, viewport, sidebar, minimap, win/loss screens, ASCII art (840 lines)
+types.rs      → Position, Tile, Zone, VimMotion, Direction, Enemy, App, RenderGrid, ViewModel (308 lines)
+animation.rs  → GameClock, AnimationState, AnimationTimer, Interpolator (easing) (160 lines)
+visibility.rs → VisibilityMap with FOV (explored/visible/hidden states) (118 lines)
+enemy.rs      → Enemy struct with BFS pathfinding toward player (91 lines)
+audio.rs      → AudioManager with SoundEffect enum, graceful fallback (56 lines)
 lib.rs        → Re-exports all modules (9 lines)
 ```
 
@@ -43,12 +44,13 @@ lib.rs        → Re-exports all modules (9 lines)
 | Change FOV/visibility | `src/visibility.rs` (compute_fov) | VisibilityMap with Hidden/Explored/Visible states |
 | Add animations | `src/animation.rs` | AnimationState + Interpolator; clock via GameClock trait |
 | Add sound effects | `src/audio.rs` (SoundEffect enum + AudioManager) | Audio disabled by default |
-| Fix a bug | Check tests first: 275 inline tests across 9 files | main.rs and lib.rs have no tests |
+| Fix a bug | Check tests in `tests/` directory (275 integration tests across 9 files) | main.rs and lib.rs have no tests |
 
 ## Conventions
 - Rust edition 2024. No clippy/rustfmt config — defaults apply.
-- Inline tests only (`#[cfg(test)] mod tests`). No `tests/` directory, no test frameworks.
-- Test helpers per-file: `test_map()`, `started_app_with_map()`, `key_event()`, `assert_approx_eq()`, `tick_timer()`.
+- Integration tests in `tests/` directory (275 tests across 9 files). Shared helpers in `tests/common/mod.rs`.
+- Test helpers: `test_map()`, `started_app_with_map()`, `test_app()`, `assert_approx_eq()`, `approx_eq()`, `tick_timer()`, `tick_state()`.
+- `renderer.rs` internals are `pub` for integration test access (e.g., `screen_meets_minimum_size`, `phase_definitions`, `exit_glow`, etc.).
 - `lib.rs` re-exports all modules. `main.rs` is thin (~32 lines).
 - `is_passable` = `Tile::Floor` or `Tile::Exit` only.
 - `renderer.rs` is read-only — never mutates App state.
@@ -63,7 +65,7 @@ lib.rs        → Re-exports all modules (9 lines)
 ## Commands
 ```bash
 cargo build          # Compile
-cargo test           # Run 275 inline tests
+cargo test           # Run 275 integration tests
 cargo run            # Launch game in terminal
 ```
 
