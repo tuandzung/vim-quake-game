@@ -170,7 +170,33 @@ pub enum GameState {
     Playing,
     Won,
     Lost,
+    Paused,
     Quit,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum PauseOption {
+    Resume,
+    RetryLevel,
+    QuitGame,
+}
+
+impl PauseOption {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Resume => Self::RetryLevel,
+            Self::RetryLevel => Self::QuitGame,
+            Self::QuitGame => Self::Resume,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Self::Resume => Self::QuitGame,
+            Self::RetryLevel => Self::Resume,
+            Self::QuitGame => Self::RetryLevel,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -293,6 +319,7 @@ pub struct App {
     pub enemies: Vec<Enemy>,
     pub lives: usize,
     pub game_state: GameState,
+    pub pause_selection: PauseOption,
     pub started: bool,
     pub pending_input: Option<PendingInput>,
     pub start_time: Instant,

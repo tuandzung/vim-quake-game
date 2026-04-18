@@ -18,6 +18,11 @@ impl GameState for AppWrapper {
             game::handle_key(&mut self.app, key, ctx.shift);
         }
 
+        if self.app.game_state == vim_quake::types::GameState::Quit {
+            ctx.quit();
+            return;
+        }
+
         game::tick(&mut self.app, f64::from(ctx.frame_time_ms));
 
         self.app.update_visibility();

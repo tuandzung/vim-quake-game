@@ -7,7 +7,9 @@ use crate::animation::{AnimationState, ENEMY_MOVE_MS, PLAYER_MOVE_MS};
 use crate::audio::SoundEffect;
 use crate::map::Map;
 use crate::player::Player;
-use crate::types::{App, Enemy, FOV_RADIUS, GameState, PendingInput, Tile, VimMotion};
+use crate::types::{
+    App, Enemy, FOV_RADIUS, GameState, PauseOption, PendingInput, Tile, VimMotion,
+};
 use crate::visibility::VisibilityMap;
 
 impl Default for App {
@@ -30,6 +32,7 @@ impl App {
             enemies: Vec::new(),
             lives: 3,
             game_state: GameState::Playing,
+            pause_selection: PauseOption::Resume,
             started: false,
             pending_input: None,
             start_time: Instant::now(),
@@ -132,6 +135,10 @@ impl App {
 }
 
 pub fn tick(app: &mut App, delta_ms: f64) {
+    if app.game_state == GameState::Paused {
+        return;
+    }
+
     if let Some(animation) = app.player_animation.as_mut() {
         animation.update(delta_ms);
         if animation.is_complete() {
@@ -216,9 +223,32 @@ pub fn handle_key(app: &mut App, key: VirtualKeyCode, shift: bool) {
         return;
     }
 
+    if app.game_state == GameState::Paused {
+        match key {
+            VirtualKeyCode::Escape => {
+                app.game_state = GameState::Playing;
+            }
+            VirtualKeyCode::Up | VirtualKeyCode::K if !shift => {
+                app.pause_selection = app.pause_selection.prev();
+            }
+            VirtualKeyCode::Down | VirtualKeyCode::J if !shift => {
+                app.pause_selection = app.pause_selection.next();
+            }
+            VirtualKeyCode::Return => match app.pause_selection {
+                PauseOption::Resume => app.game_state = GameState::Playing,
+                PauseOption::RetryLevel => app.retry_level(),
+                PauseOption::QuitGame => app.game_state = GameState::Quit,
+            },
+            _ => {}
+        }
+        return;
+    }
+
     if matches!(key, VirtualKeyCode::Escape) || (key == VirtualKeyCode::Q && !shift) {
         app.input_queue.clear();
-        app.game_state = GameState::Quit;
+        app.pending_input = None;
+        app.game_state = GameState::Paused;
+        app.pause_selection = PauseOption::Resume;
         return;
     }
 
