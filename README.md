@@ -19,6 +19,7 @@ A roguelike dungeon game with ASCII aesthetic in a graphical window, teaching Vi
 - **Animated exit glow** — pulsing `►` beacon guides you to the goal
 - **Depth-aware walls** — glyph variation (█▓▒#) based on neighbor analysis
 - **Victory screen** — ASCII trophy, zone-by-zone completion breakdown with progress bars, and motion mastery rating (up to 13 motions)
+- **Pause menu** — press `Esc` or `q` to pause; choose Resume, Retry Level, or Quit Game (navigate with `j`/`k` or arrow keys)
 
 ## Motions
 
@@ -43,7 +44,9 @@ Opens a graphical window (80×50 character grid). Requires a display — not a t
 ## Controls
 
 - Move with the Vim motions listed above
-- `q` / `Esc` — quit
+- `Esc` / `q` — open pause menu (Resume, Retry Level, Quit Game)
+- `j`/`k` or `↑`/`↓` — navigate pause menu
+- `Enter` — select pause menu option
 - Any key — start from title screen
 
 Reach the exit (`>`) on each level. Complete all 3 levels to win. Lose all lives and you can retry the current level with a fresh map.
@@ -59,12 +62,12 @@ cargo run      # Play
 ## Architecture
 
 ```
-src/main.rs       bracket-lib BTerm setup + GameState event loop
-src/game.rs       App state, input handling, enemy turns, win/loss, trail, audio, animation
+src/main.rs       bracket-lib BTerm setup + GameState event loop, quit handling
+src/game.rs       App state, input handling, enemy turns, win/loss/retry, pause menu, trail, audio, animation
 src/player.rs     Player + 13 motion implementations
 src/map.rs        80×40 grid, 5 zones, corridor carving, 3 dungeon levels, enemy spawn points
-src/renderer.rs   bracket-lib rendering: title, viewport, sidebar, minimap, win/loss screens, fog of war
-src/types.rs      Shared types (Position, Tile, Zone, VimMotion, Enemy, GameState, App, …)
+src/renderer.rs   bracket-lib rendering: title, viewport, sidebar, minimap, win/loss/pause screens, fog of war
+src/types.rs      Shared types (Position, Tile, Zone, VimMotion, Enemy, GameState, PauseOption, App, …)
 src/animation.rs  Animation timers, ease-in-out interpolation, deterministic TestClock
 src/visibility.rs FOV ray-casting, explored tile tracking (Hidden/Explored/Visible)
 src/enemy.rs      Enemy struct with BFS pathfinding toward the player

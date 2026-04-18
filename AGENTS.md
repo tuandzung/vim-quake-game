@@ -38,7 +38,8 @@ lib.rs        → Re-exports all modules (9 lines)
 | Add a new Vim motion | `src/player.rs` + `src/types.rs` (VimMotion enum) | Also update game.rs parse_motion |
 | Change dungeon layout | `src/map.rs` (carve_level, build_level_2/3) | grid[y][x] row-major; 3 levels |
 | Add UI elements | `src/renderer.rs` | Pure display — never mutates state |
-| Change game flow | `src/game.rs` (handle_key, tick, execute_motion) | Two-phase input for f/t/dd/gg |
+| Change game flow | `src/game.rs` (handle_key, tick, execute_motion) | Two-phase input for f/t/dd/gg; pause menu on ESC/q |
+| Change pause menu | `src/game.rs` + `src/renderer.rs` + `src/types.rs` | GameState::Paused, PauseOption, render_pause_overlay |
 | Add new types | `src/types.rs` | All modules import via `crate::types::*` |
 | Change enemy AI | `src/enemy.rs` (step_toward_player) | BFS pathfinding, called from game.rs enemies_step |
 | Change FOV/visibility | `src/visibility.rs` (compute_fov) | VisibilityMap with Hidden/Explored/Visible states |

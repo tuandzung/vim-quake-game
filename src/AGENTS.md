@@ -8,13 +8,13 @@ All application source code for vim-quake. Tests are in the `tests/` directory (
 ## Key Files
 | File | Lines | Role |
 |------|-------|------|
-| `main.rs` | 32 | Binary entry — bracket-lib setup, event loop, delegates to game/renderer |
+| `main.rs` | 44 | Binary entry — bracket-lib setup, event loop, quit handling via `ctx.quit()`, delegates to game/renderer |
 | `lib.rs` | 9 | Library root — `pub mod` re-exports all modules |
-| `game.rs` | 458 | `App` state, `handle_key`/`tick`, `parse_motion`, `execute_motion`, `enemies_step`, win/loss/retry, trail, audio dispatch |
+| `game.rs` | 487 | `App` state, `handle_key`/`tick`, `parse_motion`, `execute_motion`, `enemies_step`, win/loss/retry, pause menu, trail, audio dispatch |
 | `player.rs` | 223 | `Player` struct + 13 motion impls (h/j/k/l/w/b/0/$/G/gg/f/t/dd) |
 | `map.rs` | 332 | `Map` struct, 80×40 grid, 5 zones, 3 levels (`carve_level`, `build_level_2/3`), enemy spawn points |
-| `renderer.rs` | 840 | bracket-lib rendering — title/gameplay/win/lost screens, viewport, sidebar, minimap, zone colors |
-| `types.rs` | 308 | Position, Tile, Zone, VimMotion, Direction, Enemy, GameState, App, RenderGrid, ViewModel, ScreenModel |
+| `renderer.rs` | 921 | bracket-lib rendering — title/gameplay/win/lost/pause screens, viewport, sidebar, minimap, zone colors |
+| `types.rs` | 334 | Position, Tile, Zone, VimMotion, Direction, Enemy, GameState, PauseOption, App, RenderGrid, ViewModel, ScreenModel |
 | `animation.rs` | 160 | `GameClock` trait, `RealClock`/`TestClock`, `AnimationState`, `AnimationTimer`, `Interpolator` |
 | `visibility.rs` | 118 | `VisibilityMap` with `compute_fov`, `VisibilityState` (Hidden/Explored/Visible) |
 | `enemy.rs` | 91 | `Enemy` struct with BFS `step_toward_player` |
@@ -26,7 +26,8 @@ All application source code for vim-quake. Tests are in the `tests/` directory (
 | Add Vim motion | `player.rs` + `types.rs` | VimMotion enum, handle_motion match arm, game.rs parse_motion |
 | Change dungeon | `map.rs` | carve_level, build_level_2/3, assign_zones |
 | Change UI | `renderer.rs` | Pure display only — never mutates state |
-| Change game flow | `game.rs` | handle_key, tick, pending_input two-phase for f/t/dd/gg |
+| Change game flow | `game.rs` | handle_key, tick, pending_input two-phase for f/t/dd/gg; ESC/q opens pause menu |
+| Change pause menu | `game.rs` + `renderer.rs` + `types.rs` | GameState::Paused, PauseOption enum, render_pause_overlay |
 | Add shared type | `types.rs` | All modules import via `crate::types::*` |
 | Change enemy AI | `enemy.rs` | step_toward_player (BFS), called via game.rs enemies_step |
 | Change visibility | `visibility.rs` | compute_fov, VisibilityMap, demote_visible_to_explored |
@@ -50,6 +51,7 @@ lib.rs        ← main.rs (implicit)
 ## Conventions
 - `grid[y][x]` row-major indexing — always bounds-check before access.
 - Event handling: single-key motions execute immediately; f/t/dd/gg set `pending_input` for next keypress.
+- Pause menu: ESC or q opens pause overlay; j/k or ↑/↓ navigate options; Enter selects; ESC resumes. `tick()` freezes when paused.
 - `Tile` has `glyph()` for char + `Display` for string. `VimMotion` has `key_label()`, `display_name()`, `description()`.
 - Input queue: `input_queue` in App buffers keypresses during animation; dequeued after animation completes.
 - `GameClock` trait: `RealClock` in production, `TestClock` (deterministic) in tests.
@@ -62,7 +64,7 @@ lib.rs        ← main.rs (implicit)
 275 integration tests in `tests/` directory (no inline tests in src/):
 | File | Tests | Coverage |
 |------|-------|----------|
-| `tests/game.rs` | 72 | Motions, pending input, animations, input queue, level transitions, enemies, audio, trail, visibility, win/loss/retry |
+| `tests/game.rs` | 72 | Motions, pending input, animations, input queue, level transitions, enemies, audio, trail, visibility, win/loss/retry, pause menu |
 | `tests/renderer.rs` | 44 | Zone colors, wall glyphs, duration formatting, phases, exit glow, trail colors, minimap, fog, centering |
 | `tests/map.rs` | 33 | Dimensions, tiles, passability, zones, corridors, obstacles, 3 levels, reachability, enemy spawns |
 | `tests/animation.rs` | 29 | Timer progress, interpolation, easing, AnimationState, TestClock determinism |
