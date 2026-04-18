@@ -271,7 +271,7 @@ fn queued_multi_key_motion_executes_without_stalling() {
     handle_key(&mut app, VirtualKeyCode::G, false);
     tick(&mut app, PLAYER_MOVE_MS);
 
-    assert_eq!(app.player.position, Position { x: 0, y: 0 });
+    assert_eq!(app.player.position, Position { x: 3, y: 0 });
     assert_eq!(app.pending_input, None);
     assert!(app.player_animation.is_some());
     assert!(app.input_queue.is_empty());
@@ -582,17 +582,17 @@ fn app_level_transition_loads_new_map() {
 }
 
 #[test]
-fn app_g_jump_to_last_row() {
+fn app_g_jump_to_column_bottom() {
     let mut app = started_app_with_map(test_map(5, 5), Position { x: 2, y: 2 });
 
     handle_key(&mut app, VirtualKeyCode::G, true);
 
-    assert_eq!(app.player.position.y, 4);
+    assert_eq!(app.player.position, Position { x: 2, y: 4 });
     assert_eq!(app.pending_input, None);
 }
 
 #[test]
-fn app_gg_two_keys_jump_to_first_row() {
+fn app_gg_two_keys_jump_to_column_top() {
     let mut app = started_app_with_map(test_map(5, 5), Position { x: 2, y: 4 });
 
     handle_key(&mut app, VirtualKeyCode::G, false);
@@ -600,7 +600,7 @@ fn app_gg_two_keys_jump_to_first_row() {
 
     handle_key(&mut app, VirtualKeyCode::G, false);
 
-    assert_eq!(app.player.position.y, 0);
+    assert_eq!(app.player.position, Position { x: 2, y: 0 });
     assert_eq!(app.pending_input, None);
 }
 

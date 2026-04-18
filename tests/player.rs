@@ -173,25 +173,25 @@ fn player_dd_no_obstacle_fails() {
 }
 
 #[test]
-fn player_g_jumps_to_last_passable_row() {
+fn player_g_jumps_to_column_bottom() {
     let mut map = test_map(5, 5);
-    map.set_tile(0, 4, Tile::Wall);
-    map.set_tile(1, 4, Tile::Wall);
+    map.set_tile(2, 4, Tile::Wall);
+    map.set_tile(2, 3, Tile::Wall);
     let mut player = Player::new(Position { x: 2, y: 0 });
 
     assert!(player.handle_motion(VimMotion::G, None, &mut map));
-    assert_eq!(player.position, Position { x: 2, y: 4 });
+    assert_eq!(player.position, Position { x: 2, y: 2 });
 }
 
 #[test]
-fn player_gg_jumps_to_first_passable_row() {
+fn player_gg_jumps_to_column_top() {
     let mut map = test_map(5, 5);
-    map.set_tile(0, 0, Tile::Wall);
-    map.set_tile(1, 0, Tile::Wall);
+    map.set_tile(2, 0, Tile::Wall);
+    map.set_tile(2, 1, Tile::Wall);
     let mut player = Player::new(Position { x: 2, y: 4 });
 
     assert!(player.handle_motion(VimMotion::GotoLine, None, &mut map));
-    assert_eq!(player.position, Position { x: 2, y: 0 });
+    assert_eq!(player.position, Position { x: 2, y: 2 });
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn player_g_no_passable_rows_fails() {
 }
 
 #[test]
-fn player_gg_no_passable_rows_fails() {
+fn player_gg_no_passable_in_column_fails() {
     let mut map = Map {
         grid: vec![vec![Tile::Wall; 5]; 5],
         zones: vec![vec![Zone::Zone1; 5]; 5],
@@ -240,7 +240,7 @@ fn player_g_already_on_target_row_returns_false() {
 }
 
 #[test]
-fn player_gg_already_on_target_row_returns_false() {
+fn player_gg_already_at_column_top_returns_false() {
     let mut map = test_map(5, 5);
     let mut player = Player::new(Position { x: 0, y: 0 });
 

@@ -75,8 +75,8 @@ fn position_is_copy() {
 
 #[test]
 fn new_motion_display_names() {
-    assert_eq!(VimMotion::G.display_name(), "Last row");
-    assert_eq!(VimMotion::GotoLine.display_name(), "First row");
+    assert_eq!(VimMotion::G.display_name(), "Column bottom");
+    assert_eq!(VimMotion::GotoLine.display_name(), "Column top");
 }
 
 #[test]
