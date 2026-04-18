@@ -8,7 +8,8 @@ use vim_quake::animation::{ENEMY_MOVE_MS, PLAYER_MOVE_MS};
 use vim_quake::game::{handle_key, tick};
 use vim_quake::map::Map;
 use vim_quake::types::{
-    App, Enemy, GameState, PendingInput, Position, TOTAL_LEVELS, Tile, VimMotion, Zone,
+    App, Enemy, GameState, PauseOption, PendingInput, Position, TOTAL_LEVELS, Tile, VimMotion,
+    Zone,
 };
 use vim_quake::visibility::{VisibilityMap, VisibilityState};
 
@@ -149,23 +150,25 @@ fn app_handle_key_starts_game() {
 }
 
 #[test]
-fn app_esc_quits() {
+fn app_esc_opens_pause_menu() {
     let mut app = App::new();
     app.started = true;
 
     handle_key(&mut app, VirtualKeyCode::Escape, false);
 
-    assert_eq!(app.game_state, GameState::Quit);
+    assert_eq!(app.game_state, GameState::Paused);
+    assert_eq!(app.pause_selection, PauseOption::Resume);
 }
 
 #[test]
-fn app_q_quits() {
+fn app_q_opens_pause_menu() {
     let mut app = App::new();
     app.started = true;
 
     handle_key(&mut app, VirtualKeyCode::Q, false);
 
-    assert_eq!(app.game_state, GameState::Quit);
+    assert_eq!(app.game_state, GameState::Paused);
+    assert_eq!(app.pause_selection, PauseOption::Resume);
 }
 
 #[test]
