@@ -1,6 +1,8 @@
 use bracket_lib::prelude::*;
 
-use crate::types::{App, GameState, PendingInput, Position, TOTAL_LEVELS, Tile, VimMotion, Zone};
+use crate::types::{
+    App, GameState, PauseOption, PendingInput, Position, TOTAL_LEVELS, Tile, VimMotion, Zone,
+};
 use crate::visibility::VisibilityState;
 
 pub const SCREEN_WIDTH: u32 = 80;
@@ -27,6 +29,12 @@ pub fn render(ctx: &mut BTerm, app: &App) {
 
     if app.game_state == GameState::Lost {
         render_lost(ctx, app);
+        return;
+    }
+
+    if app.game_state == GameState::Paused {
+        render_gameplay(ctx, app);
+        render_pause_overlay(ctx, app);
         return;
     }
 
@@ -662,6 +670,80 @@ fn render_lost(ctx: &mut BTerm, app: &App) {
     ctx.print_color(center_x(prompt.len()), y, yellow, black, prompt);
     y += 1;
     ctx.print_color(center_x(18), y, dark_gray, black, "Esc or q quits");
+}
+
+fn render_pause_overlay(ctx: &mut BTerm, app: &App) {
+    let white = RGB::named(WHITE);
+    let yellow = RGB::named(YELLOW);
+    let cyan = RGB::named(CYAN);
+    let dark_gray = rgb8(130, 130, 130);
+    let box_bg = rgb8(20, 20, 40);
+    let box_width = 36i32;
+    let box_height = 11i32;
+    let left = center_x(box_width as usize);
+    let top = center_y_for(SCREEN_HEIGHT, box_height as usize);
+    let text_x = left + 2;
+    let text_width = (box_width - 4) as usize;
+
+    ctx.print_color(left, top, white, box_bg, "┌");
+    for x in (left + 1)..(left + box_width - 1) {
+        ctx.print_color(x, top, white, box_bg, "─");
+    }
+    ctx.print_color(left + box_width - 1, top, white, box_bg, "┐");
+
+    for y in (top + 1)..(top + box_height - 1) {
+        ctx.print_color(left, y, white, box_bg, "│");
+        for x in (left + 1)..(left + box_width - 1) {
+            ctx.print_color(x, y, white, box_bg, " ");
+        }
+        ctx.print_color(left + box_width - 1, y, white, box_bg, "│");
+    }
+
+    ctx.print_color(left, top + box_height - 1, white, box_bg, "└");
+    for x in (left + 1)..(left + box_width - 1) {
+        ctx.print_color(x, top + box_height - 1, white, box_bg, "─");
+    }
+    ctx.print_color(left + box_width - 1, top + box_height - 1, white, box_bg, "┘");
+
+    let header = "P  A  U  S  E";
+    ctx.print_color(center_x(header.len()), top + 2, cyan, box_bg, header);
+
+    let options = [
+        (PauseOption::Resume, "Resume"),
+        (PauseOption::RetryLevel, "Retry Level"),
+        (PauseOption::QuitGame, "Quit Game"),
+    ];
+
+    for (index, (option, label)) in options.iter().enumerate() {
+        let selected = app.pause_selection == *option;
+        let prefix = if selected { "► " } else { "  " };
+        let line = format!("{prefix}{label}");
+        let color = if selected { yellow } else { dark_gray };
+        ctx.print_color(
+            text_x,
+            top + 4 + index as i32,
+            color,
+            box_bg,
+            format!("{line:<text_width$}"),
+        );
+    }
+
+    let nav_hint = "↑↓ j/k navigate  Enter select";
+    ctx.print_color(
+        text_x,
+        top + 8,
+        dark_gray,
+        box_bg,
+        format!("{nav_hint:<text_width$}"),
+    );
+    let esc_hint = "Esc resume";
+    ctx.print_color(
+        text_x,
+        top + 9,
+        dark_gray,
+        box_bg,
+        format!("{esc_hint:<text_width$}"),
+    );
 }
 
 pub fn center_x(text_len: usize) -> i32 {
