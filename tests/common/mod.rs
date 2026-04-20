@@ -32,7 +32,7 @@ pub fn started_app_with_map(map: Map, position: Position) -> App {
         enemy_animations: Vec::new(),
         input_queue: Vec::new(),
         enemies: Vec::new(),
-        lives: 3,
+        hp: MAX_HP,
         game_state: GameState::Playing,
         pause_selection: PauseOption::Resume,
         started: true,
@@ -46,6 +46,8 @@ pub fn started_app_with_map(map: Map, position: Position) -> App {
         trail: VecDeque::new(),
         level: 1,
         audio: AudioManager::new(),
+        last_checkpoint: None,
+        activated_torchlights: Default::default(),
     };
     app.update_visibility();
     app
@@ -61,7 +63,7 @@ pub fn test_app() -> App {
         enemy_animations: Vec::new(),
         input_queue: Vec::new(),
         enemies: Vec::new(),
-        lives: 3,
+        hp: MAX_HP,
         game_state: GameState::Playing,
         pause_selection: PauseOption::Resume,
         started: true,
@@ -75,6 +77,8 @@ pub fn test_app() -> App {
         trail: VecDeque::new(),
         level: 1,
         audio: AudioManager::new(),
+        last_checkpoint: None,
+        activated_torchlights: Default::default(),
     }
 }
 

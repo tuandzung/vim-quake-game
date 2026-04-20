@@ -7,7 +7,7 @@ use crate::animation::{AnimationState, ENEMY_MOVE_MS, PLAYER_MOVE_MS};
 use crate::audio::SoundEffect;
 use crate::map::Map;
 use crate::player::Player;
-use crate::types::{App, Enemy, FOV_RADIUS, GameState, PauseOption, PendingInput, Tile, VimMotion};
+use crate::types::{App, Enemy, FOV_RADIUS, GameState, MAX_HP, PauseOption, PendingInput, Tile, TORCHLIGHT_FOV_RADIUS, VimMotion};
 use crate::visibility::VisibilityMap;
 
 impl Default for App {
@@ -28,7 +28,7 @@ impl App {
             enemy_animations: Vec::new(),
             input_queue: Vec::new(),
             enemies: Vec::new(),
-            lives: 3,
+            hp: MAX_HP,
             game_state: GameState::Playing,
             pause_selection: PauseOption::Resume,
             started: false,
@@ -44,6 +44,8 @@ impl App {
             trail: VecDeque::new(),
             level: 1,
             audio: crate::audio::AudioManager::new(),
+            last_checkpoint: None,
+            activated_torchlights: Default::default(),
         };
         app.update_visibility();
         app
@@ -77,9 +79,25 @@ impl App {
             .compute_fov(player_position, FOV_RADIUS, |pos| {
                 matches!(
                     map.get_tile(pos.x, pos.y),
-                    Tile::Floor | Tile::Exit | Tile::Obstacle
+                    Tile::Floor | Tile::Exit | Tile::Obstacle | Tile::Torchlight
                 )
             });
+
+        let torchlight_sources: Vec<(crate::types::Position, i32)> = self
+            .activated_torchlights
+            .iter()
+            .map(|&pos| (pos, TORCHLIGHT_FOV_RADIUS))
+            .collect();
+
+        if !torchlight_sources.is_empty() {
+            let map_ref = &self.map;
+            self.visibility.compute_multi_fov(&torchlight_sources, |pos| {
+                matches!(
+                    map_ref.get_tile(pos.x, pos.y),
+                    Tile::Floor | Tile::Exit | Tile::Obstacle | Tile::Torchlight
+                )
+            });
+        }
     }
 
     pub fn advance_level(&mut self) {
@@ -93,10 +111,18 @@ impl App {
             .map
             .enemy_spawns
             .iter()
-            .map(|&pos| Enemy::new(pos))
+            .map(|&pos| {
+                if self.level == 4 {
+                    Enemy { position: pos, glyph: 'e', hp: Some(30) }
+                } else {
+                    Enemy::new(pos)
+                }
+            })
             .collect();
         self.trail.clear();
         self.pending_input = None;
+        self.last_checkpoint = None;
+        self.activated_torchlights.clear();
         if self.visibility.width() != self.map.width || self.visibility.height() != self.map.height
         {
             self.visibility = VisibilityMap::new(self.map.width, self.map.height);
@@ -116,12 +142,20 @@ impl App {
             .map
             .enemy_spawns
             .iter()
-            .map(|&pos| Enemy::new(pos))
+            .map(|&pos| {
+                if self.level == 4 {
+                    Enemy { position: pos, glyph: 'e', hp: Some(30) }
+                } else {
+                    Enemy::new(pos)
+                }
+            })
             .collect();
-        self.lives = 3;
+        self.hp = MAX_HP;
         self.trail.clear();
         self.pending_input = None;
         self.game_state = GameState::Playing;
+        self.last_checkpoint = None;
+        self.activated_torchlights.clear();
         if self.visibility.width() != self.map.width || self.visibility.height() != self.map.height
         {
             self.visibility = VisibilityMap::new(self.map.width, self.map.height);
@@ -290,6 +324,11 @@ pub fn handle_key(app: &mut App, key: VirtualKeyCode, shift: bool) {
         return;
     }
 
+    if key == VirtualKeyCode::X && !shift {
+        handle_melee_attack(app);
+        return;
+    }
+
     match parse_motion(key, shift) {
         Some(ParsedInput::Immediate(motion)) => execute_motion(app, motion, None),
         Some(ParsedInput::AwaitTarget(pending)) => {
@@ -335,6 +374,34 @@ fn parse_motion(key: VirtualKeyCode, shift: bool) -> Option<ParsedInput> {
     }
 }
 
+fn push_enemies_off_position(app: &mut App, pos: crate::types::Position) {
+    let directions: [(isize, isize); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
+    let mut new_positions: Vec<Option<crate::types::Position>> = vec![None; app.enemies.len()];
+    for (i, enemy) in app.enemies.iter().enumerate() {
+        if enemy.position != pos {
+            continue;
+        }
+        for (dx, dy) in &directions {
+            let nx = (pos.x as isize + dx) as usize;
+            let ny = (pos.y as isize + dy) as usize;
+            if nx < app.map.width && ny < app.map.height && app.map.is_passable(nx, ny) {
+                let occupied = app.enemies.iter().enumerate().any(|(j, e)| {
+                    j != i && e.position.x == nx && e.position.y == ny && e.position != pos
+                });
+                if !occupied {
+                    new_positions[i] = Some(crate::types::Position { x: nx, y: ny });
+                    break;
+                }
+            }
+        }
+    }
+    for (i, enemy) in app.enemies.iter_mut().enumerate() {
+        if let Some(new_pos) = new_positions[i] {
+            enemy.position = new_pos;
+        }
+    }
+}
+
 fn enemies_step(app: &mut App) {
     let player_pos = app.player.position;
     let mut prior_animations = vec![None; app.enemies.len()];
@@ -364,6 +431,7 @@ fn enemies_step(app: &mut App) {
     let player_pos = app.player.position;
     let mut remaining_enemies = Vec::with_capacity(app.enemies.len());
     let mut next_animations = Vec::new();
+    let mut death_checkpoint: Option<crate::types::Position> = None;
     for (old_index, ((old_position, old_visual_position), enemy)) in old_positions
         .into_iter()
         .zip(old_visual_positions)
@@ -372,16 +440,37 @@ fn enemies_step(app: &mut App) {
     {
         if enemy.position == player_pos {
             app.audio.play(SoundEffect::Damage);
-            if app.lives > 1 {
-                app.lives -= 1;
-                app.status_message = format!("Hit! {} lives remaining.", app.lives);
+            app.hp -= 10;
+            if app.hp <= 0 {
+                app.hp = 0;
+                death_checkpoint = app.last_checkpoint;
+                if death_checkpoint.is_none() {
+                    app.input_queue.clear();
+                    app.enemy_animations.clear();
+                    app.game_state = GameState::Lost;
+                    app.status_message = String::from("You were caught! Game over.");
+                    return;
+                }
+                app.status_message = String::from("Respawned at checkpoint!");
             } else {
-                app.lives = 0;
-                app.game_state = GameState::Lost;
-                app.input_queue.clear();
-                app.enemy_animations.clear();
-                app.status_message = String::from("You were caught! Game over.");
-                return;
+                app.status_message = format!("Hit! {} HP remaining.", app.hp);
+            }
+            // Level 4 enemies (hp: Some) persist after collision; Level 3 enemies (hp: None) despawn
+            if enemy.hp.is_some() {
+                let new_index = remaining_enemies.len();
+                if old_position != enemy.position {
+                    next_animations.push((
+                        new_index,
+                        AnimationState::new(
+                            ENEMY_MOVE_MS,
+                            old_visual_position,
+                            (enemy.position.x as f64, enemy.position.y as f64),
+                        ),
+                    ));
+                } else if let Some(animation) = prior_animations[old_index] {
+                    next_animations.push((new_index, animation));
+                }
+                remaining_enemies.push(enemy);
             }
         } else {
             let new_index = remaining_enemies.len();
@@ -403,6 +492,17 @@ fn enemies_step(app: &mut App) {
 
     app.enemies = remaining_enemies;
     app.enemy_animations = next_animations;
+
+    if let Some(checkpoint) = death_checkpoint {
+        app.input_queue.clear();
+        app.enemy_animations.clear();
+        app.hp = MAX_HP;
+        app.player.position = checkpoint;
+        app.player_animation = None;
+        app.game_state = GameState::Playing;
+        push_enemies_off_position(app, checkpoint);
+        app.update_visibility();
+    }
 }
 
 fn execute_motion(app: &mut App, motion: VimMotion, target: Option<char>) {
@@ -463,6 +563,19 @@ fn execute_motion(app: &mut App, motion: VimMotion, target: Option<char>) {
     if app
         .map
         .get_tile(app.player.position.x, app.player.position.y)
+        == Tile::Torchlight
+    {
+        let torch_pos = app.player.position;
+        if !app.activated_torchlights.contains(&torch_pos) {
+            app.activated_torchlights.insert(torch_pos);
+            app.last_checkpoint = Some(torch_pos);
+            app.status_message = String::from("Checkpoint activated! Torchlight lit.");
+        }
+    }
+
+    if app
+        .map
+        .get_tile(app.player.position.x, app.player.position.y)
         == Tile::Exit
     {
         if app.level < crate::types::TOTAL_LEVELS {
@@ -480,6 +593,61 @@ fn execute_motion(app: &mut App, motion: VimMotion, target: Option<char>) {
     }
 
     if activated && old_pos != app.player.position {
+        app.update_visibility();
         enemies_step(app);
+    }
+}
+
+fn handle_melee_attack(app: &mut App) {
+    if app.level != 4 {
+        app.status_message = String::from("Nothing to attack.");
+        return;
+    }
+
+    let facing = match app.player.last_direction {
+        Some(dir) => dir,
+        None => {
+            app.status_message = String::from("No direction — move first.");
+            return;
+        }
+    };
+
+    let (dx, dy) = facing.delta();
+    let target_x = (app.player.position.x as isize + dx) as usize;
+    let target_y = (app.player.position.y as isize + dy) as usize;
+
+    let enemy_index = app
+        .enemies
+        .iter()
+        .position(|e| e.position.x == target_x && e.position.y == target_y);
+
+    match enemy_index {
+        Some(idx) => {
+            let enemy_hp = app.enemies[idx].hp;
+            match enemy_hp {
+                Some(hp) if hp > 0 => {
+                    let new_hp = hp - 10;
+                    if new_hp <= 0 {
+                        app.enemies.remove(idx);
+                        app.status_message = String::from("Enemy defeated!");
+                    } else {
+                        app.enemies[idx].hp = Some(new_hp);
+                        app.status_message = format!("Hit! Enemy HP: {}", new_hp);
+                    }
+                    app.motion_count += 1;
+                    app.refresh_time();
+                    enemies_step(app);
+                }
+                _ => {
+                    app.status_message = String::from("Can't attack this enemy.");
+                }
+            }
+        }
+        None => {
+            app.status_message = String::from("Nothing there.");
+            app.motion_count += 1;
+            app.refresh_time();
+            enemies_step(app);
+        }
     }
 }

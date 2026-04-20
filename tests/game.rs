@@ -8,7 +8,7 @@ use vim_quake::animation::{ENEMY_MOVE_MS, PLAYER_MOVE_MS};
 use vim_quake::game::{handle_key, tick};
 use vim_quake::map::Map;
 use vim_quake::types::{
-    App, Enemy, GameState, PauseOption, PendingInput, Position, TOTAL_LEVELS, Tile, VimMotion, Zone,
+    App, Direction, Enemy, GameState, MAX_HP, PauseOption, PendingInput, Position, TOTAL_LEVELS, Tile, VimMotion, Zone,
 };
 use vim_quake::visibility::{VisibilityMap, VisibilityState};
 
@@ -666,17 +666,17 @@ fn retry_level_resets_visibility() {
 }
 
 #[test]
-fn app_enemy_collision_decrements_lives_and_removes_enemy() {
+fn app_enemy_collision_decrements_hp_and_removes_enemy() {
     let map = test_map(5, 5);
     let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
-    app.lives = 3;
+    app.hp = MAX_HP;
     app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
 
     handle_key(&mut app, VirtualKeyCode::H, false);
 
-    assert_eq!(app.lives, 2);
+    assert_eq!(app.hp, 20);
     assert_eq!(app.game_state, GameState::Playing);
-    assert!(app.status_message.contains("2 lives remaining"));
+    assert!(app.status_message.contains("20 HP remaining"));
     assert!(app.enemies.is_empty());
 }
 
@@ -744,15 +744,15 @@ fn enemy_animation_interpolates_position() {
 }
 
 #[test]
-fn app_enemy_collision_sets_lost_when_no_lives() {
+fn app_enemy_collision_sets_lost_when_hp_depleted() {
     let map = test_map(5, 5);
     let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
-    app.lives = 1;
+    app.hp = 10;
     app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
 
     handle_key(&mut app, VirtualKeyCode::H, false);
 
-    assert_eq!(app.lives, 0);
+    assert_eq!(app.hp, 0);
     assert_eq!(app.game_state, GameState::Lost);
     assert!(app.status_message.contains("Game over"));
     assert!(app.enemies.is_empty());
@@ -777,17 +777,17 @@ fn app_advance_level_spawns_enemies_from_map() {
 }
 
 #[test]
-fn app_advance_level_preserves_lives() {
+fn app_advance_level_preserves_hp() {
     let mut map = test_map(5, 5);
     map.set_tile(4, 0, Tile::Exit);
     map.exit = Position { x: 4, y: 0 };
     let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
     app.level = 1;
-    app.lives = 2;
+    app.hp = 20;
 
     app.advance_level();
 
-    assert_eq!(app.lives, 2);
+    assert_eq!(app.hp, 20);
 }
 
 #[test]
@@ -881,13 +881,13 @@ fn audio_no_zone_entry_sound_when_same_zone() {
 fn audio_damage_plays_on_enemy_hit() {
     let map = test_map(5, 5);
     let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
-    app.lives = 3;
+    app.hp = MAX_HP;
     app.audio.enable();
     app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
 
     handle_key(&mut app, VirtualKeyCode::H, false);
 
-    assert_eq!(app.lives, 2);
+    assert_eq!(app.hp, 20);
     assert!(app.enemies.is_empty());
 }
 
@@ -952,16 +952,113 @@ fn audio_no_panic_when_disabled() {
 
     let map3 = test_map(5, 5);
     let mut app3 = started_app_with_map(map3, Position { x: 3, y: 0 });
-    app3.lives = 3;
+    app3.hp = MAX_HP;
     app3.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
     handle_key(&mut app3, VirtualKeyCode::H, false);
-    assert_eq!(app3.lives, 2);
+    assert_eq!(app3.hp, 20);
 }
 
 #[test]
 fn audio_app_new_has_disabled_audio() {
     let app = App::new();
     assert!(!app.audio.is_enabled());
+}
+
+#[test]
+fn torchlight_activation_on_step() {
+    let mut map = test_map(20, 20);
+    map.set_tile(6, 5, Tile::Torchlight);
+    let mut app = started_app_with_map(map, Position { x: 5, y: 5 });
+
+    handle_key(&mut app, VirtualKeyCode::L, false);
+
+    assert!(app.activated_torchlights.contains(&Position { x: 6, y: 5 }));
+    assert_eq!(app.last_checkpoint, Some(Position { x: 6, y: 5 }));
+    assert!(app.status_message.contains("Checkpoint"));
+}
+
+#[test]
+fn torchlight_activation_idempotent() {
+    let mut map = test_map(20, 20);
+    map.set_tile(6, 5, Tile::Torchlight);
+    map.set_tile(7, 5, Tile::Floor);
+    let mut app = started_app_with_map(map, Position { x: 5, y: 5 });
+
+    handle_key(&mut app, VirtualKeyCode::L, false);
+    assert!(app.activated_torchlights.contains(&Position { x: 6, y: 5 }));
+
+    handle_key(&mut app, VirtualKeyCode::L, false);
+    handle_key(&mut app, VirtualKeyCode::H, false);
+
+    assert_eq!(app.activated_torchlights.len(), 1);
+}
+
+#[test]
+fn torchlight_reveals_nearby_tiles() {
+    let mut map = test_map(40, 40);
+    map.set_tile(20, 20, Tile::Torchlight);
+    let mut app = started_app_with_map(map, Position { x: 5, y: 5 });
+
+    app.activated_torchlights.insert(Position { x: 20, y: 20 });
+    app.update_visibility();
+
+    assert_eq!(app.visibility.get(Position { x: 20, y: 20 }), VisibilityState::Visible);
+    assert_eq!(app.visibility.get(Position { x: 22, y: 20 }), VisibilityState::Visible);
+}
+
+#[test]
+fn torchlight_visibility_persists_after_player_moves_away() {
+    let mut map = test_map(40, 40);
+    map.set_tile(20, 20, Tile::Torchlight);
+    let mut app = started_app_with_map(map, Position { x: 19, y: 20 });
+
+    handle_key(&mut app, VirtualKeyCode::L, false);
+    assert!(app.activated_torchlights.contains(&Position { x: 20, y: 20 }));
+
+    handle_key(&mut app, VirtualKeyCode::H, false);
+
+    assert_eq!(app.visibility.get(Position { x: 20, y: 20 }), VisibilityState::Visible);
+}
+
+#[test]
+fn advance_level_clears_torchlight_checkpoints() {
+    let mut map = test_map(5, 5);
+    map.set_tile(4, 0, Tile::Exit);
+    map.exit = Position { x: 4, y: 0 };
+    let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+    app.level = 1;
+    app.activated_torchlights.insert(Position { x: 2, y: 2 });
+    app.last_checkpoint = Some(Position { x: 2, y: 2 });
+
+    app.advance_level();
+
+    assert!(app.activated_torchlights.is_empty());
+    assert_eq!(app.last_checkpoint, None);
+}
+
+#[test]
+fn retry_level_clears_torchlight_checkpoints() {
+    let mut map = test_map(5, 5);
+    let mut app = started_app_with_map(map, Position { x: 3, y: 3 });
+    app.level = 2;
+    app.activated_torchlights.insert(Position { x: 2, y: 2 });
+    app.last_checkpoint = Some(Position { x: 2, y: 2 });
+
+    app.retry_level();
+
+    assert!(app.activated_torchlights.is_empty());
+    assert_eq!(app.last_checkpoint, None);
+}
+
+#[test]
+fn visibility_updates_after_each_move() {
+    let mut map = test_map(40, 20);
+    let mut app = started_app_with_map(map, Position { x: 5, y: 10 });
+
+    handle_key(&mut app, VirtualKeyCode::L, false);
+
+    assert_eq!(app.visibility.get(Position { x: 6, y: 10 }), VisibilityState::Visible);
+    assert_eq!(app.visibility.get(app.player.position), VisibilityState::Visible);
 }
 
 #[test]
@@ -974,4 +1071,338 @@ fn audio_enabled_does_not_crash_during_movement() {
     handle_key(&mut app, VirtualKeyCode::L, false);
 
     assert_eq!(app.player.position, Position { x: 3, y: 0 });
+}
+
+fn level4_app_with_enemy(enemy_pos: Position, enemy_hp: Option<i32>) -> App {
+    let map = test_map(20, 20);
+    let mut app = started_app_with_map(map, Position { x: 5, y: 5 });
+    app.level = 4;
+    app.enemies = vec![Enemy {
+        position: enemy_pos,
+        glyph: 'e',
+        hp: enemy_hp,
+    }];
+    app.player.last_direction = Some(Direction::Right);
+    app
+}
+
+#[test]
+fn facing_updates_on_l_movement() {
+    let mut app = started_app_with_map(test_map(5, 1), Position { x: 2, y: 0 });
+    assert_eq!(app.player.last_direction, None);
+    handle_key(&mut app, VirtualKeyCode::L, false);
+    assert_eq!(app.player.last_direction, Some(Direction::Right));
+}
+
+#[test]
+fn facing_updates_on_h_movement() {
+    let mut app = started_app_with_map(test_map(5, 1), Position { x: 2, y: 0 });
+    handle_key(&mut app, VirtualKeyCode::H, false);
+    assert_eq!(app.player.last_direction, Some(Direction::Left));
+}
+
+#[test]
+fn facing_updates_on_j_movement() {
+    let mut app = started_app_with_map(test_map(5, 5), Position { x: 2, y: 2 });
+    handle_key(&mut app, VirtualKeyCode::J, false);
+    assert_eq!(app.player.last_direction, Some(Direction::Down));
+}
+
+#[test]
+fn facing_updates_on_k_movement() {
+    let mut app = started_app_with_map(test_map(5, 5), Position { x: 2, y: 2 });
+    handle_key(&mut app, VirtualKeyCode::K, false);
+    assert_eq!(app.player.last_direction, Some(Direction::Up));
+}
+
+#[test]
+fn facing_does_not_update_on_failed_move() {
+    let mut app = started_app_with_map(test_map(5, 1), Position { x: 0, y: 0 });
+    assert_eq!(app.player.last_direction, None);
+    handle_key(&mut app, VirtualKeyCode::H, false);
+    assert_eq!(app.player.last_direction, None);
+}
+
+#[test]
+fn melee_attack_hits_enemy_on_level_4() {
+    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, Some(30));
+    let initial_motions = app.motion_count;
+    handle_key(&mut app, VirtualKeyCode::X, false);
+    assert!(app.status_message.contains("Hit"));
+    assert!(app.status_message.contains("20"));
+    assert_eq!(app.motion_count, initial_motions + 1);
+}
+
+#[test]
+fn melee_attack_kills_enemy_after_3_hits() {
+    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, Some(30));
+
+    handle_key(&mut app, VirtualKeyCode::X, false);
+    assert!(app.status_message.contains("Hit"));
+    assert!(app.status_message.contains("20"));
+
+    app.enemies = vec![Enemy {
+        position: Position { x: 6, y: 5 },
+        glyph: 'e',
+        hp: Some(20),
+    }];
+    app.player.last_direction = Some(Direction::Right);
+
+    handle_key(&mut app, VirtualKeyCode::X, false);
+    assert!(app.status_message.contains("Hit"));
+    assert!(app.status_message.contains("10"));
+
+    app.enemies = vec![Enemy {
+        position: Position { x: 6, y: 5 },
+        glyph: 'e',
+        hp: Some(10),
+    }];
+    app.player.last_direction = Some(Direction::Right);
+
+    handle_key(&mut app, VirtualKeyCode::X, false);
+    assert!(app.status_message.contains("defeated"));
+}
+
+#[test]
+fn melee_attack_noop_on_level_3() {
+    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, Some(30));
+    app.level = 3;
+    let initial_motions = app.motion_count;
+    handle_key(&mut app, VirtualKeyCode::X, false);
+    assert!(app.status_message.contains("Nothing to attack"));
+    assert_eq!(app.enemies[0].hp, Some(30));
+    assert_eq!(app.motion_count, initial_motions);
+}
+
+#[test]
+fn melee_attack_noop_on_level_1() {
+    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, Some(30));
+    app.level = 1;
+    handle_key(&mut app, VirtualKeyCode::X, false);
+    assert!(app.status_message.contains("Nothing to attack"));
+}
+
+#[test]
+fn melee_attack_no_facing() {
+    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, Some(30));
+    app.player.last_direction = None;
+    let initial_motions = app.motion_count;
+    handle_key(&mut app, VirtualKeyCode::X, false);
+    assert!(app.status_message.contains("direction") || app.status_message.contains("move"));
+    assert_eq!(app.enemies[0].hp, Some(30));
+    assert_eq!(app.motion_count, initial_motions);
+}
+
+#[test]
+fn melee_attack_miss_no_enemy() {
+    let mut app = level4_app_with_enemy(Position { x: 15, y: 5 }, Some(30));
+    let initial_motions = app.motion_count;
+    handle_key(&mut app, VirtualKeyCode::X, false);
+    assert!(app.status_message.contains("Nothing"));
+    assert_eq!(app.motion_count, initial_motions + 1);
+    assert_eq!(app.enemies.len(), 1);
+}
+
+#[test]
+fn melee_attack_cant_attack_hp_none_enemy() {
+    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, None);
+    let initial_motions = app.motion_count;
+    handle_key(&mut app, VirtualKeyCode::X, false);
+    assert!(app.status_message.contains("Can't attack"));
+    assert_eq!(app.enemies.len(), 1);
+    assert_eq!(app.motion_count, initial_motions);
+}
+
+#[test]
+fn death_with_checkpoint_respawns_at_torchlight() {
+    let map = test_map(20, 20);
+    let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+    app.hp = 10;
+    app.last_checkpoint = Some(Position { x: 10, y: 10 });
+    app.activated_torchlights.insert(Position { x: 10, y: 10 });
+    app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
+
+    handle_key(&mut app, VirtualKeyCode::H, false);
+
+    assert_eq!(app.hp, MAX_HP, "HP should be restored to MAX_HP after checkpoint respawn");
+    assert_eq!(app.player.position, Position { x: 10, y: 10 }, "Player should respawn at checkpoint");
+    assert_eq!(app.game_state, GameState::Playing, "Game state should remain Playing after respawn");
+    assert!(app.status_message.contains("Respawned at checkpoint"));
+}
+
+#[test]
+fn death_without_checkpoint_triggers_lost() {
+    let map = test_map(20, 20);
+    let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+    app.hp = 10;
+    app.last_checkpoint = None;
+    app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
+
+    handle_key(&mut app, VirtualKeyCode::H, false);
+
+    assert_eq!(app.hp, 0);
+    assert_eq!(app.game_state, GameState::Lost, "Should be Lost when no checkpoint");
+    assert!(app.status_message.contains("Game over"));
+}
+
+#[test]
+fn checkpoint_state_persists_after_respawn() {
+    let map = test_map(20, 20);
+    let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+    app.hp = 10;
+    let checkpoint = Position { x: 10, y: 10 };
+    app.last_checkpoint = Some(checkpoint);
+    app.activated_torchlights.insert(checkpoint);
+    app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
+
+    handle_key(&mut app, VirtualKeyCode::H, false);
+
+    assert!(app.activated_torchlights.contains(&checkpoint), "Torchlights should persist after respawn");
+    assert_eq!(app.last_checkpoint, Some(checkpoint), "Checkpoint should persist after respawn");
+}
+
+#[test]
+fn surviving_enemies_persist_after_checkpoint_respawn() {
+    let map = test_map(20, 20);
+    let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+    app.hp = 10;
+    app.last_checkpoint = Some(Position { x: 10, y: 10 });
+    app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
+    let far_enemy_pos = Position { x: 15, y: 15 };
+    app.enemies.push(Enemy {
+        position: far_enemy_pos,
+        glyph: 'e',
+        hp: Some(30),
+    });
+
+    handle_key(&mut app, VirtualKeyCode::H, false);
+
+    assert_eq!(app.game_state, GameState::Playing);
+    assert_eq!(app.enemies.len(), 1, "Non-colliding enemy should survive checkpoint respawn");
+    assert_ne!(app.enemies[0].position, far_enemy_pos, "Surviving enemy should have moved via BFS");
+}
+
+#[test]
+fn enemy_on_checkpoint_tile_is_pushed_on_respawn() {
+    let map = test_map(20, 20);
+    let mut app = started_app_with_map(map, Position { x: 3, y: 0 });
+    app.hp = 10;
+    let checkpoint = Position { x: 10, y: 10 };
+    app.last_checkpoint = Some(checkpoint);
+    app.activated_torchlights.insert(checkpoint);
+    app.enemies.push(Enemy::new(Position { x: 1, y: 0 }));
+    app.enemies.push(Enemy {
+        position: checkpoint,
+        glyph: 'e',
+        hp: Some(30),
+    });
+
+    handle_key(&mut app, VirtualKeyCode::H, false);
+
+    assert_eq!(app.game_state, GameState::Playing);
+    assert_eq!(app.player.position, checkpoint, "Player should be at checkpoint");
+    let enemy_on_checkpoint = app.enemies.iter().any(|e| e.position == checkpoint);
+    assert!(!enemy_on_checkpoint, "Enemy should be pushed off checkpoint tile");
+    assert_eq!(app.enemies.len(), 1, "One surviving enemy after respawn");
+}
+
+#[test]
+fn level_transition_clears_checkpoints() {
+    let map = test_map(20, 20);
+    let mut app = started_app_with_map(map, Position { x: 3, y: 3 });
+    app.last_checkpoint = Some(Position { x: 10, y: 10 });
+    app.activated_torchlights.insert(Position { x: 10, y: 10 });
+
+    app.advance_level();
+
+    assert_eq!(app.last_checkpoint, None, "Checkpoint should be cleared on level advance");
+    assert!(app.activated_torchlights.is_empty(), "Torchlights should be cleared on level advance");
+}
+
+#[test]
+fn level_4_enemies_have_hp_from_advance_level() {
+    let mut app = App::new();
+    app.started = true;
+    app.level = 3;
+    app.advance_level();
+    assert_eq!(app.level, 4);
+    assert!(!app.enemies.is_empty(), "Level 4 should have enemy spawns");
+    for enemy in &app.enemies {
+        assert!(enemy.hp.is_some(), "Level 4 enemies should have hp: Some(N)");
+        assert_eq!(enemy.hp, Some(30), "Level 4 enemies should have 30 HP");
+    }
+}
+
+#[test]
+fn level_3_enemies_have_no_hp() {
+    let mut app = App::new();
+    app.started = true;
+    app.level = 2;
+    app.advance_level();
+    assert_eq!(app.level, 3);
+    if !app.enemies.is_empty() {
+        for enemy in &app.enemies {
+            assert!(enemy.hp.is_none(), "Level 3 enemies should have hp: None (despawn on contact)");
+        }
+    }
+}
+
+#[test]
+fn level_4_retry_level_enemies_have_hp() {
+    let mut app = App::new();
+    app.started = true;
+    app.level = 3;
+    app.advance_level();
+    assert_eq!(app.level, 4);
+    app.hp = 0;
+    app.game_state = GameState::Lost;
+    app.retry_level();
+    assert_eq!(app.level, 4);
+    assert!(!app.enemies.is_empty(), "Level 4 should have enemy spawns after retry");
+    for enemy in &app.enemies {
+        assert!(enemy.hp.is_some(), "Level 4 enemies after retry should have hp: Some(N)");
+        assert_eq!(enemy.hp, Some(30), "Level 4 enemies after retry should have 30 HP");
+    }
+}
+
+#[test]
+fn level_1_and_2_enemies_have_no_hp() {
+    let mut app = App::new();
+    app.started = true;
+    app.level = 1;
+    app.advance_level();
+    assert_eq!(app.level, 2);
+    assert!(app.enemies.is_empty(), "Level 2 should have no enemies");
+}
+
+#[test]
+fn level_4_colliding_enemy_persists_on_checkpoint_respawn() {
+    // Level 4 enemies with hp: Some(30) should persist even after colliding with the player,
+    // unlike Level 3 enemies (hp: None) which despawn on contact.
+    let map = test_map(20, 20);
+    let mut app = started_app_with_map(map, Position { x: 5, y: 5 });
+    app.level = 4;
+    app.hp = 10;
+    let checkpoint = Position { x: 10, y: 10 };
+    app.last_checkpoint = Some(checkpoint);
+    app.activated_torchlights.insert(checkpoint);
+    app.player.last_direction = Some(Direction::Right);
+    // Level 4 enemy with hp: Some(30)
+    app.enemies = vec![Enemy {
+        position: Position { x: 6, y: 5 },
+        glyph: 'e',
+        hp: Some(30),
+    }];
+
+    // Move right — enemy steps toward player, collision occurs, HP -> 0 -> checkpoint respawn
+    vim_quake::game::handle_key(&mut app, VirtualKeyCode::L, false);
+
+    // Player should have respawned at checkpoint
+    assert_eq!(app.hp, MAX_HP, "HP should be restored to MAX_HP");
+    assert_eq!(app.player.position, checkpoint, "Player should respawn at checkpoint");
+    assert_eq!(app.game_state, GameState::Playing, "Should be Playing after respawn");
+
+    // The Level 4 enemy should persist (not despawn)
+    assert_eq!(app.enemies.len(), 1, "Level 4 enemy should persist after collision");
+    assert_eq!(app.enemies[0].hp, Some(30), "Level 4 enemy HP should be unchanged");
 }
