@@ -9,7 +9,7 @@ use vim_quake::animation::{AnimationState, ENEMY_MOVE_MS};
 use vim_quake::map::Map;
 use vim_quake::player::Player;
 use vim_quake::renderer::*;
-use vim_quake::types::{App, Enemy, GameState, Position, Tile, VimMotion, Zone};
+use vim_quake::types::{App, Enemy, GameState, Position, Tile, VimMotion, Zone, MAX_HP};
 use vim_quake::visibility::{VisibilityMap, VisibilityState};
 
 #[test]
@@ -224,6 +224,7 @@ fn visual_enemy_positions_use_active_animation() {
     app.enemies.push(Enemy {
         position: Position { x: 4, y: 2 },
         glyph: 'e',
+        hp: None,
     });
     let mut animation = AnimationState::new(ENEMY_MOVE_MS, (2.0, 2.0), (4.0, 2.0));
     animation.update(ENEMY_MOVE_MS / 2.0);
@@ -394,4 +395,25 @@ fn minimap_scaling_center_cell() {
         cy > 15 && cy < 25,
         "center minimap cell should map near map center, got y={cy}"
     );
+}
+
+#[test]
+fn torchlight_glyph_is_i() {
+    assert_eq!(Tile::Torchlight.glyph(), 'i');
+}
+
+#[test]
+fn max_hp_constant_for_bar() {
+    let hp = MAX_HP;
+    let hp_ratio = hp as f32 / MAX_HP as f32;
+    let hp_filled = (hp_ratio * 10.0).round() as usize;
+    assert_eq!(hp_filled, 10);
+}
+
+#[test]
+fn hp_bar_half_at_15() {
+    let hp_ratio = 15_f32 / MAX_HP as f32;
+    let hp_filled = (hp_ratio * 10.0).round() as usize;
+    assert_eq!(hp_filled, 5);
+    assert!(hp_ratio > 0.25 && hp_ratio <= 0.5);
 }
