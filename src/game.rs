@@ -537,8 +537,14 @@ fn enemies_step(app: &mut App) {
         if enemy.stunned_turns > 0 {
             enemy.stunned_turns -= 1;
         } else {
-            enemy.step_toward_player(player_pos, &app.map);
-            app.audio.play(SoundEffect::EnemyStep);
+            let moved = if enemy.has_line_of_sight(player_pos, &app.map) {
+                enemy.step_toward_player(player_pos, &app.map)
+            } else {
+                enemy.patrol_step(&app.map)
+            };
+            if moved {
+                app.audio.play(SoundEffect::EnemyStep);
+            }
         }
     }
 
