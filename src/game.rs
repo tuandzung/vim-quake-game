@@ -102,15 +102,7 @@ impl App {
         }
     }
 
-    pub fn advance_level(&mut self) {
-        self.level += 1;
-        self.map = Map::level(self.level);
-        self.player.position = self.map.start;
-        self.player_animation = None;
-        self.enemy_animations.clear();
-        self.attack_effects.clear();
-        self.pending_respawn = None;
-        self.input_queue.clear();
+    fn spawn_enemies_for_current_level(&mut self) {
         self.enemies = self
             .map
             .enemy_spawns
@@ -128,6 +120,18 @@ impl App {
                 }
             })
             .collect();
+    }
+
+    pub fn advance_level(&mut self) {
+        self.level += 1;
+        self.map = Map::level(self.level);
+        self.player.position = self.map.start;
+        self.player_animation = None;
+        self.enemy_animations.clear();
+        self.attack_effects.clear();
+        self.pending_respawn = None;
+        self.input_queue.clear();
+        self.spawn_enemies_for_current_level();
         self.trail.clear();
         self.pending_input = None;
         self.last_checkpoint = None;
@@ -149,23 +153,7 @@ impl App {
         self.attack_effects.clear();
         self.pending_respawn = None;
         self.input_queue.clear();
-        self.enemies = self
-            .map
-            .enemy_spawns
-            .iter()
-            .enumerate()
-            .map(|(i, &pos)| {
-                let patrol_area = self.map.enemy_patrol_areas.get(i).copied()
-                    .unwrap_or_else(|| PatrolArea::point(pos.x, pos.y));
-                if self.level == 4 {
-                    Enemy { position: pos, glyph: 'e', hp: Some(30), stunned_turns: 0, patrol_area }
-                } else {
-                    let mut e = Enemy::new(pos);
-                    e.patrol_area = patrol_area;
-                    e
-                }
-            })
-            .collect();
+        self.spawn_enemies_for_current_level();
         self.hp = MAX_HP;
         self.trail.clear();
         self.pending_input = None;
@@ -466,7 +454,9 @@ fn push_enemies_off_position(app: &mut App, pos: crate::types::Position) {
     for (dx, dy) in &directions {
         let nx = (pos.x as isize + dx) as usize;
         let ny = (pos.y as isize + dy) as usize;
-        if nx < app.map.width && ny < app.map.height {
+        if nx < app.map.width && ny < app.map.height
+            && app.map.is_passable(nx, ny)
+        {
             let neighbor = crate::types::Position { x: nx, y: ny };
             if visited.insert(neighbor) {
                 bfs.push_back(neighbor);
@@ -496,7 +486,9 @@ fn push_enemies_off_position(app: &mut App, pos: crate::types::Position) {
         for (dx, dy) in &directions {
             let nx = (candidate.x as isize + dx) as usize;
             let ny = (candidate.y as isize + dy) as usize;
-            if nx < app.map.width && ny < app.map.height {
+            if nx < app.map.width && ny < app.map.height
+                && app.map.is_passable(nx, ny)
+            {
                 let neighbor = crate::types::Position { x: nx, y: ny };
                 if visited.insert(neighbor) {
                     bfs.push_back(neighbor);
@@ -705,11 +697,6 @@ fn execute_motion(app: &mut App, motion: VimMotion, target: Option<char>) {
 }
 
 fn handle_melee_attack(app: &mut App) {
-    if app.level != 4 {
-        app.status_message = String::from("Nothing to attack.");
-        return;
-    }
-
     let facing = match app.player.last_direction {
         Some(dir) => dir,
         None => {

@@ -1167,22 +1167,22 @@ fn melee_attack_kills_enemy_after_3_hits() {
 }
 
 #[test]
-fn melee_attack_noop_on_level_3() {
-    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, Some(30));
+fn melee_attack_noop_on_level_3_non_hp_enemy() {
+    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, None);
     app.level = 3;
     let initial_motions = app.motion_count;
     handle_key(&mut app, VirtualKeyCode::X, false);
-    assert!(app.status_message.contains("Nothing to attack"));
-    assert_eq!(app.enemies[0].hp, Some(30));
+    assert!(app.status_message.contains("Can't attack"));
+    assert_eq!(app.enemies[0].hp, None);
     assert_eq!(app.motion_count, initial_motions);
 }
 
 #[test]
-fn melee_attack_noop_on_level_1() {
-    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, Some(30));
+fn melee_attack_noop_on_level_1_non_hp_enemy() {
+    let mut app = level4_app_with_enemy(Position { x: 6, y: 5 }, None);
     app.level = 1;
     handle_key(&mut app, VirtualKeyCode::X, false);
-    assert!(app.status_message.contains("Nothing to attack"));
+    assert!(app.status_message.contains("Can't attack"));
 }
 
 #[test]
@@ -1769,7 +1769,7 @@ fn checkpoint_respawn_pushes_stacked_enemies_off_checkpoint() {
 }
 
 #[test]
-fn push_enemies_bfs_past_walls() {
+fn push_enemies_bfs_respects_walls() {
     let mut map = test_map(10, 10);
     let checkpoint = Position { x: 5, y: 5 };
     map.set_tile(4, 5, Tile::Wall);
@@ -1789,10 +1789,11 @@ fn push_enemies_bfs_past_walls() {
     assert_eq!(app.game_state, GameState::Playing);
     assert_eq!(app.player.position, checkpoint);
     assert_eq!(app.enemies.len(), 2);
-    let on_checkpoint = app.enemies.iter().any(|e| e.position == checkpoint);
-    assert!(!on_checkpoint, "BFS should find tiles beyond the wall ring");
-    let positions: std::collections::HashSet<Position> = app.enemies.iter().map(|e| e.position).collect();
-    assert_eq!(positions.len(), 2, "enemies should not stack");
+    // Enemies stay at checkpoint since all neighbors are impassable walls
+    assert!(
+        app.enemies.iter().all(|e| e.position == checkpoint),
+        "BFS should not push enemies through walls"
+    );
 }
 
 #[test]
