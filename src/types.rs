@@ -350,4 +350,6 @@ pub struct App {
     pub audio: AudioManager,
     pub last_checkpoint: Option<Position>,
     pub activated_torchlights: HashSet<Position>,
+    pub cheat_buffer: String,
+    pub cheat_god_mode: bool,
 }

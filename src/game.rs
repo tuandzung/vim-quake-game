@@ -53,6 +53,8 @@ impl App {
             audio: crate::audio::AudioManager::new(),
             last_checkpoint: None,
             activated_torchlights: Default::default(),
+            cheat_buffer: String::new(),
+            cheat_god_mode: false,
         };
         app.update_visibility();
         app
@@ -295,6 +297,77 @@ fn vkey_to_char(key: VirtualKeyCode, shift: bool) -> Option<char> {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum CheatCode {
+    NextLevel,
+    GodMode,
+    KillEnemies,
+    Noclip,
+}
+
+fn check_cheat_code(app: &mut App, key: VirtualKeyCode, shift: bool) -> Option<CheatCode> {
+    let ch = match vkey_to_char(key, shift) {
+        Some(c) => c,
+        None => {
+            app.cheat_buffer.clear();
+            return None;
+        }
+    };
+    app.cheat_buffer.push(ch);
+    while app.cheat_buffer.len() > 2 {
+        app.cheat_buffer.remove(0);
+    }
+    let code = match app.cheat_buffer.as_str() {
+        "iv" => Some(CheatCode::NextLevel),
+        "im" => Some(CheatCode::GodMode),
+        "ie" => Some(CheatCode::KillEnemies),
+        "ip" => Some(CheatCode::Noclip),
+        _ => None,
+    };
+    if code.is_some() {
+        app.cheat_buffer.clear();
+    }
+    code
+}
+
+fn apply_cheat(app: &mut App, cheat: CheatCode) {
+    match cheat {
+        CheatCode::NextLevel => {
+            if app.level < crate::types::TOTAL_LEVELS {
+                app.advance_level();
+                app.status_message = String::from("CHEAT: Level skip!");
+            } else {
+                app.game_state = GameState::Won;
+                let final_time = app.start_time.elapsed();
+                app.final_time = Some(final_time);
+                app.elapsed = final_time;
+                app.status_message = String::from("CHEAT: Instant victory!");
+            }
+        }
+        CheatCode::GodMode => {
+            app.cheat_god_mode = !app.cheat_god_mode;
+            app.status_message = if app.cheat_god_mode {
+                String::from("CHEAT: God mode ON")
+            } else {
+                String::from("CHEAT: God mode OFF")
+            };
+        }
+        CheatCode::KillEnemies => {
+            app.enemies.clear();
+            app.enemy_animations.clear();
+            app.status_message = String::from("CHEAT: All enemies eliminated!");
+        }
+        CheatCode::Noclip => {
+            app.player.noclip = !app.player.noclip;
+            app.status_message = if app.player.noclip {
+                String::from("CHEAT: Noclip ON")
+            } else {
+                String::from("CHEAT: Noclip OFF")
+            };
+        }
+    }
+}
+
 pub fn handle_key(app: &mut App, key: VirtualKeyCode, shift: bool) {
     if !app.started {
         app.started = true;
@@ -302,6 +375,11 @@ pub fn handle_key(app: &mut App, key: VirtualKeyCode, shift: bool) {
         app.elapsed = Default::default();
         app.status_message =
             String::from("Use hjkl to move. Every motion is available from the start.");
+        return;
+    }
+
+    if let Some(cheat) = check_cheat_code(app, key, shift) {
+        apply_cheat(app, cheat);
         return;
     }
 
@@ -543,6 +621,7 @@ fn enemies_step(app: &mut App) {
         if enemy.position == player_pos
             && enemy.stunned_turns == 0
             && app.game_state == GameState::Playing
+            && !app.cheat_god_mode
         {
             app.audio.play(SoundEffect::Damage);
             app.hp -= 10;
