@@ -561,3 +561,21 @@ fn level_4_spawns_are_within_their_patrol_areas() {
         );
     }
 }
+
+#[test]
+fn level_4_room_2_has_torchlight() {
+    let map = Map::level(4);
+    let has_torchlight = (50..=63).any(|x| {
+        (2..=9).any(|y| map.get_tile(x, y) == Tile::Torchlight)
+    });
+    assert!(has_torchlight, "Room 2 (x:50-63, y:2-9) should contain a torchlight checkpoint");
+}
+
+#[test]
+fn level_4_room_4_has_torchlight() {
+    let map = Map::level(4);
+    let has_torchlight = (8..=21).any(|x| {
+        (30..=37).any(|y| map.get_tile(x, y) == Tile::Torchlight)
+    });
+    assert!(has_torchlight, "Room 4 (x:8-21, y:30-37) should contain a torchlight checkpoint");
+}
