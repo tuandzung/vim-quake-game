@@ -58,9 +58,12 @@ Reach the exit (`>`) on each level. Complete all 4 levels to win. Lose all lives
 ## Build & Test
 
 ```bash
-cargo build    # Compile
-cargo test     # Run 383 integration tests
-cargo run      # Play
+cargo build            # Compile
+cargo test             # Run 385 integration tests
+cargo fmt              # Format code (uses rustfmt.toml)
+cargo fmt --check      # Check formatting without writing
+cargo clippy           # Lint
+cargo run              # Play
 ```
 
 ## Architecture

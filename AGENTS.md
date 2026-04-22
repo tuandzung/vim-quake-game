@@ -1,5 +1,5 @@
 <!-- Generated: 2026-04-17 | Updated: 2026-04-22 -->
-<!-- Commit: 87cce31 | Branch: feat/level4-combat-hp-checkpoints -->
+<!-- Commit: 59f0023 | Branch: main -->
 
 # vim-quake
 
@@ -48,7 +48,7 @@ lib.rs        → Re-exports all modules (9 lines)
 | Fix a bug | Check tests in `tests/` directory (385 integration tests across 9 files) | main.rs and lib.rs have no tests |
 
 ## Conventions
-- Rust edition 2024. No clippy/rustfmt config — defaults apply.
+- Rust edition 2024. Formatting configured via `rustfmt.toml` (`use_small_heuristics = "Max"`, `edition = "2024"`).
 - Integration tests in `tests/` directory (385 tests across 9 files). Shared helpers in `tests/common/mod.rs`.
 - Test helpers: `test_map()`, `started_app_with_map()`, `test_app()`, `assert_approx_eq()`, `approx_eq()`, `tick_timer()`, `tick_state()`.
 - `renderer.rs` internals are `pub` for integration test access (e.g., `screen_meets_minimum_size`, `phase_definitions`, `exit_glow`, etc.).
@@ -69,10 +69,20 @@ lib.rs        → Re-exports all modules (9 lines)
 
 ## Commands
 ```bash
-cargo build          # Compile
-cargo test           # Run 385 integration tests
-cargo run            # Launch game in terminal
+cargo fmt              # Format code (uses rustfmt.toml)
+cargo fmt --check      # Check formatting without writing
+cargo clippy           # Lint
+cargo test             # Run 385 integration tests
+cargo build            # Compile
+cargo run              # Launch game in terminal
 ```
+
+## Verification Checklist
+After any code change, run ALL of these before considering work complete:
+1. `cargo fmt --check` — ensure formatting is clean
+2. `cargo clippy` — zero warnings
+3. `cargo test` — all 385 tests pass
+4. Update `CHANGELOG.md` — add entry under `[Unreleased]` or new version section
 
 ## Dependencies
 | Crate | Version | Used In |
@@ -81,8 +91,9 @@ cargo run            # Launch game in terminal
 | bracket-lib | 0.8.7 | main.rs (terminal + rendering), renderer.rs, audio.rs |
 
 ## Notes
-- No CI/CD configured. No Makefile, build.rs, or custom scripts.
-- No config files beyond Cargo.toml (no .editorconfig, clippy.toml, rustfmt.toml).
+- CI/CD: GitHub Actions for lint, test, build, and cross-platform release (`.github/workflows/`).
+- No Makefile, build.rs, or custom scripts.
+- Config files: `rustfmt.toml` (formatting rules). No clippy.toml or .editorconfig.
 - Coordinate system: `grid[y][x]` — always bounds-check before access.
 - 4 dungeon levels: Level 1 (basic), Level 2 (inverted maze + obstacles), Level 3 (zigzag + BFS enemies), Level 4 (fortress rooms + FOV-aware patrol enemies).
 - Lives system: 3 lives; enemy collision costs a life; 0 lives → Lost state → retry current level.

@@ -47,6 +47,7 @@
 - `renderer.rs` internals are `pub` for test access (e.g., `screen_meets_minimum_size`, `phase_definitions`, `exit_glow`).
 
 ## Notes
+- Formatting configured via `rustfmt.toml` — run `cargo fmt --check` before committing.
 - `tests/common/mod.rs` has some helpers trigger `dead_code` warnings — expected, only used by subset of test files.
 - Game test file (`tests/game.rs`) is largest at 1893 lines due to comprehensive state machine coverage.
 - No `#[should_panic]` tests — error cases return gracefully.

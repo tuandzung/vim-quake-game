@@ -49,6 +49,7 @@ lib.rs        ← main.rs (implicit)
 ```
 
 ## Conventions
+- Formatting configured via `rustfmt.toml` (`use_small_heuristics = "Max"`, `edition = "2024"`). Run `cargo fmt --check` before committing.
 - `grid[y][x]` row-major indexing — always bounds-check before access.
 - Event handling: single-key motions execute immediately; f/t/dd/gg set `pending_input` for next keypress.
 - Pause menu: ESC or q opens pause overlay; j/k or ↑/↓ navigate options; Enter selects; ESC resumes. `tick()` freezes when paused.
