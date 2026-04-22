@@ -1,5 +1,5 @@
-<!-- Generated: 2026-04-17 | Updated: 2026-04-21 -->
-<!-- Commit: ebf6675 | Branch: feat/level4-combat-hp-checkpoints -->
+<!-- Generated: 2026-04-17 | Updated: 2026-04-22 -->
+<!-- Commit: 87cce31 | Branch: feat/level4-combat-hp-checkpoints -->
 
 # vim-quake
 
@@ -9,7 +9,7 @@ Terminal-based roguelike dungeon game (Rust + bracket-lib) teaching Vim motions 
 ```
 vim-quake/
 ├── src/          # Application source code (see src/AGENTS.md)
-├── tests/        # Integration tests — 383 tests across 9 files (see tests/AGENTS.md)
+├── tests/        # Integration tests — 385 tests across 9 files (see tests/AGENTS.md)
 ├── examples/     # Spike/prototype code (spike.rs)
 ├── Cargo.toml    # Edition 2024, deps: anyhow (unused), bracket-lib
 ├── Cargo.lock
@@ -20,7 +20,7 @@ vim-quake/
 ## Architecture
 ```
 main.rs       → bracket-lib setup + event loop (44 lines)
-game.rs       → App state, event handling, motion dispatch, FOV-gated enemy turns, win/loss, trail, audio (765 lines)
+game.rs       → App state, event handling, motion dispatch, FOV-gated enemy turns, win/loss, trail, audio (752 lines)
 player.rs     → Player + 13 motion implementations (250 lines)
 map.rs        → 80×40 grid, 5 zones, 4 dungeon levels, corridor carving, enemy spawns + patrol areas (475 lines)
 renderer.rs   → bracket-lib rendering: title, viewport, sidebar, minimap, win/loss screens, ASCII art (992 lines)
@@ -45,15 +45,15 @@ lib.rs        → Re-exports all modules (9 lines)
 | Change FOV/visibility | `src/visibility.rs` (compute_fov) | VisibilityMap with Hidden/Explored/Visible states |
 | Add animations | `src/animation.rs` | AnimationState + Interpolator; clock via GameClock trait |
 | Add sound effects | `src/audio.rs` (SoundEffect enum + AudioManager) | Audio disabled by default |
-| Fix a bug | Check tests in `tests/` directory (383 integration tests across 9 files) | main.rs and lib.rs have no tests |
+| Fix a bug | Check tests in `tests/` directory (385 integration tests across 9 files) | main.rs and lib.rs have no tests |
 
 ## Conventions
 - Rust edition 2024. No clippy/rustfmt config — defaults apply.
-- Integration tests in `tests/` directory (383 tests across 9 files). Shared helpers in `tests/common/mod.rs`.
+- Integration tests in `tests/` directory (385 tests across 9 files). Shared helpers in `tests/common/mod.rs`.
 - Test helpers: `test_map()`, `started_app_with_map()`, `test_app()`, `assert_approx_eq()`, `approx_eq()`, `tick_timer()`, `tick_state()`.
 - `renderer.rs` internals are `pub` for integration test access (e.g., `screen_meets_minimum_size`, `phase_definitions`, `exit_glow`, etc.).
 - `lib.rs` re-exports all modules. `main.rs` is thin (~32 lines).
-- `is_passable` = `Tile::Floor` or `Tile::Exit` only. `Tile::Obstacle` is not passable but can be destroyed by `dd`.
+- `is_passable` = `Tile::Floor`, `Tile::Exit`, or `Tile::Torchlight`. `Tile::Obstacle` is not passable but can be destroyed by `dd`.
 - w/b motions scan horizontally along clear paths, stopping at non-passable tiles (walls/obstacles).
 - G/gg motions scan vertically from current position, stopping at non-passable tiles (walls/obstacles).
 - `renderer.rs` is read-only — never mutates App state.
@@ -70,7 +70,7 @@ lib.rs        → Re-exports all modules (9 lines)
 ## Commands
 ```bash
 cargo build          # Compile
-cargo test           # Run 383 integration tests
+cargo test           # Run 385 integration tests
 cargo run            # Launch game in terminal
 ```
 
