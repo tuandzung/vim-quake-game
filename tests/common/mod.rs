@@ -48,6 +48,8 @@ pub fn started_app_with_map(map: Map, position: Position) -> App {
         audio: AudioManager::new(),
         last_checkpoint: None,
         activated_torchlights: Default::default(),
+        cheat_buffer: String::new(),
+        cheat_god_mode: false,
     };
     app.update_visibility();
     app
@@ -81,6 +83,8 @@ pub fn test_app() -> App {
         audio: AudioManager::new(),
         last_checkpoint: None,
         activated_torchlights: Default::default(),
+        cheat_buffer: String::new(),
+        cheat_god_mode: false,
     }
 }
 
