@@ -2,7 +2,7 @@
 <!-- Generated: 2026-04-17 | Updated: 2026-04-22 -->
 # src
 
-All application source code for vim-quake. Tests are in the `tests/` directory (integration tests).
+All application source code for vim-rogue. Tests are in the `tests/` directory (integration tests).
 
 ## Key Files
 | File | Lines | Role |

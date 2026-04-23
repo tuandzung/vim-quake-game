@@ -1,13 +1,13 @@
 <!-- Generated: 2026-04-17 | Updated: 2026-04-22 -->
 <!-- Commit: f0954bc | Branch: feat/secret-cheat-codes -->
 
-# vim-quake
+# vim-rogue
 
 Terminal-based roguelike dungeon game (Rust + bracket-lib) teaching Vim motions through gameplay. 80×40 dungeon, 4 levels, 5 zone-gated areas, 13 Vim keybindings, FOV-aware enemy AI with patrol, fog-of-war visibility.
 
 ## Structure
 ```
-vim-quake/
+vim-rogue/
 ├── src/          # Application source code (see src/AGENTS.md)
 ├── tests/        # Integration tests — 393 tests across 9 files (see tests/AGENTS.md)
 ├── examples/     # Spike/prototype code (spike.rs)

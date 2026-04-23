@@ -40,7 +40,7 @@
 - Each test file mirrors a src/ module (e.g., `tests/player.rs` ↔ `src/player.rs`).
 - `handle_key(app, VirtualKeyCode, shift: bool)` is the main input entry point for game tests.
 - `tick(&mut app, delta_ms: f64)` advances the game clock and processes one frame.
-- Animation constants: `PLAYER_MOVE_MS = 150.0`, `ENEMY_MOVE_MS = 200.0`, `ATTACK_EFFECT_MS = 200.0` — import from `vim_quake::animation`.
+- Animation constants: `PLAYER_MOVE_MS = 150.0`, `ENEMY_MOVE_MS = 200.0`, `ATTACK_EFFECT_MS = 200.0` — import from `vim_rogue::animation`.
 - `TestClock` provides deterministic timing; always use it in tests (never `RealClock`).
 - Enemy construction: `Enemy::new(pos)` for default; override fields with `Enemy { position: pos, hp: Some(30), ..Enemy::new(pos) }` for Level 4 enemies.
 - Level 4 helper: `level4_app_with_enemy(pos, hp)` in `tests/game.rs` creates app on Level 4 map with one enemy at given position.
