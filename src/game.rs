@@ -8,10 +8,9 @@ use crate::animation::{
 use crate::audio::SoundEffect;
 use crate::map::Map;
 use crate::types::{
-    App, FOV_RADIUS, GameState, InputState, MAX_HP, PauseOption, PendingInput, PlayerState,
-    Session, TORCHLIGHT_FOV_RADIUS, Tile, VimMotion, World,
+    App, GameState, InputState, MAX_HP, PauseOption, PendingInput, PlayerState, Session, Tile,
+    VimMotion, World,
 };
-use crate::visibility::VisibilityMap;
 
 impl Default for App {
     fn default() -> Self {
@@ -57,39 +56,7 @@ impl App {
     }
 
     pub fn update_visibility(&mut self) {
-        if self.world.visibility.width() != self.world.map.width
-            || self.world.visibility.height() != self.world.map.height
-        {
-            self.world.visibility = VisibilityMap::new(self.world.map.width, self.world.map.height);
-        }
-
-        let player_position = self.player.inner.position;
-        let map = &self.world.map;
-
-        self.world.visibility.demote_visible_to_explored();
-        self.world.visibility.compute_fov(player_position, FOV_RADIUS, |pos| {
-            matches!(
-                map.get_tile(pos.x, pos.y),
-                Tile::Floor | Tile::Exit | Tile::Obstacle | Tile::Torchlight
-            )
-        });
-
-        let torchlight_sources: Vec<(crate::types::Position, i32)> = self
-            .world
-            .activated_torchlights
-            .iter()
-            .map(|&pos| (pos, TORCHLIGHT_FOV_RADIUS))
-            .collect();
-
-        if !torchlight_sources.is_empty() {
-            let map_ref = &self.world.map;
-            self.world.visibility.compute_multi_fov(&torchlight_sources, |pos| {
-                matches!(
-                    map_ref.get_tile(pos.x, pos.y),
-                    Tile::Floor | Tile::Exit | Tile::Obstacle | Tile::Torchlight
-                )
-            });
-        }
+        self.world.update_visibility(self.player.inner.position);
     }
 
     pub fn advance_level(&mut self) {

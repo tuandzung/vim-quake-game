@@ -411,6 +411,30 @@ impl World {
             })
             .collect();
     }
+
+    pub fn update_visibility(&mut self, player_pos: Position) {
+        if self.visibility.width() != self.map.width || self.visibility.height() != self.map.height
+        {
+            self.visibility = VisibilityMap::new(self.map.width, self.map.height);
+        }
+        self.visibility.demote_visible_to_explored();
+        self.visibility.compute_fov(player_pos, FOV_RADIUS, |pos| {
+            matches!(
+                self.map.get_tile(pos.x, pos.y),
+                Tile::Floor | Tile::Exit | Tile::Obstacle | Tile::Torchlight
+            )
+        });
+        let sources: Vec<(Position, i32)> =
+            self.activated_torchlights.iter().map(|&pos| (pos, TORCHLIGHT_FOV_RADIUS)).collect();
+        if !sources.is_empty() {
+            self.visibility.compute_multi_fov(&sources, |pos| {
+                matches!(
+                    self.map.get_tile(pos.x, pos.y),
+                    Tile::Floor | Tile::Exit | Tile::Obstacle | Tile::Torchlight
+                )
+            });
+        }
+    }
 }
 
 pub struct PlayerState {
