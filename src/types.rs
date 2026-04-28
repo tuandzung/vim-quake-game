@@ -364,32 +364,104 @@ impl Default for CheatBuffer {
     }
 }
 
-pub struct App {
+pub struct World {
     pub map: Map,
     pub visibility: VisibilityMap,
-    pub player: Player,
-    pub player_animation: Option<AnimationState>,
-    pub enemy_animations: Vec<(usize, AnimationState)>,
-    pub attack_effects: Vec<AttackEffect>,
-    pub pending_respawn: Option<Position>,
-    pub input_queue: Vec<(VirtualKeyCode, bool)>,
     pub enemies: Vec<Enemy>,
+    pub activated_torchlights: HashSet<Position>,
+}
+
+impl World {
+    pub fn new(map: Map) -> Self {
+        let visibility = VisibilityMap::new(map.width, map.height);
+        Self { map, visibility, enemies: Vec::new(), activated_torchlights: HashSet::new() }
+    }
+}
+
+pub struct PlayerState {
+    pub inner: Player,
     pub hp: i32,
+    pub trail: VecDeque<Position>,
+    pub motion_count: usize,
+    pub discovered_motions: HashSet<VimMotion>,
+    pub level: usize,
+    pub last_checkpoint: Option<Position>,
+    pub pending_respawn: Option<Position>,
+}
+
+impl PlayerState {
+    pub fn new(position: Position) -> Self {
+        Self {
+            inner: Player::new(position),
+            hp: MAX_HP,
+            trail: VecDeque::new(),
+            motion_count: 0,
+            discovered_motions: HashSet::new(),
+            level: 1,
+            last_checkpoint: None,
+            pending_respawn: None,
+        }
+    }
+}
+
+pub struct InputState {
+    pub input_queue: Vec<(VirtualKeyCode, bool)>,
+    pub pending_input: Option<PendingInput>,
+}
+
+impl InputState {
+    pub fn new() -> Self {
+        Self { input_queue: Vec::new(), pending_input: None }
+    }
+}
+
+impl Default for InputState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct Session {
     pub game_state: GameState,
     pub pause_selection: PauseOption,
     pub started: bool,
-    pub pending_input: Option<PendingInput>,
+    pub status_message: String,
     pub start_time: Instant,
     pub elapsed: Duration,
     pub final_time: Option<Duration>,
-    pub motion_count: usize,
-    pub status_message: String,
-    pub discovered_motions: HashSet<VimMotion>,
-    pub trail: VecDeque<Position>,
-    pub level: usize,
+}
+
+impl Session {
+    pub fn new() -> Self {
+        Self {
+            game_state: GameState::Playing,
+            pause_selection: PauseOption::Resume,
+            started: false,
+            status_message: String::from(
+                "Explore the dungeon and practice the highlighted motions.",
+            ),
+            start_time: Instant::now(),
+            elapsed: Duration::default(),
+            final_time: None,
+        }
+    }
+}
+
+impl Default for Session {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct App {
+    pub world: World,
+    pub player: PlayerState,
+    pub input: InputState,
+    pub session: Session,
+    pub player_animation: Option<AnimationState>,
+    pub enemy_animations: Vec<(usize, AnimationState)>,
+    pub attack_effects: Vec<AttackEffect>,
     pub audio: AudioManager,
-    pub last_checkpoint: Option<Position>,
-    pub activated_torchlights: HashSet<Position>,
     #[cfg(debug_assertions)]
     pub cheat_buf: CheatBuffer,
     #[cfg(debug_assertions)]
