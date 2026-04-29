@@ -59,7 +59,7 @@ Reach the exit (`>`) on each level. Complete all 4 levels to win. Lose all lives
 
 ```bash
 cargo build            # Compile
-cargo test             # Run 385 integration tests
+cargo test             # Run 393 integration tests
 cargo fmt              # Format code (uses rustfmt.toml)
 cargo fmt --check      # Check formatting without writing
 cargo clippy           # Lint
@@ -70,11 +70,11 @@ cargo run              # Play
 
 ```
 src/main.rs       bracket-lib BTerm setup + GameState event loop, quit handling
-src/game.rs       App state, input handling, FOV-gated enemy turns, win/loss/retry, pause menu, trail, audio, animation
+src/game.rs       App coordinator — sequences cross-aggregate flows (level transitions, collision → damage, pause/resume)
 src/player.rs     Player + 13 motion implementations
 src/map.rs        80×40 grid, 5 zones, corridor carving, 4 dungeon levels, enemy spawn points + patrol areas
 src/renderer.rs   bracket-lib rendering: title, viewport, sidebar, minimap, win/loss/pause screens, fog of war
-src/types.rs      Shared types (Position, Tile, Zone, VimMotion, Enemy, PatrolArea, GameState, PauseOption, App, …)
+src/types.rs      Shared types (Position, Tile, Zone, VimMotion, Enemy, PatrolArea, GameState, PauseOption, App, aggregates, …)
 src/animation.rs  Animation timers, ease-in-out interpolation, deterministic TestClock
 src/visibility.rs FOV ray-casting, explored tile tracking (Hidden/Explored/Visible)
 src/enemy.rs      Enemy struct with FOV-aware BFS chase and room patrol behavior
@@ -84,8 +84,8 @@ src/lib.rs        Module re-exports
 
 ### Key Design Decisions
 
+- **Domain aggregates over god object** — `App` decomposed into `World` (terrain, visibility, enemies), `PlayerState` (position, HP, trail, progression), `InputState` (Vim key buffering), `Session` (lifecycle, timing, pause); `App` is a thin coordinator with no business logic
 - **`renderer.rs` is read-only** — never mutates game state
-- **Animation state on `App`** — separate from Player/Enemy structs (presentation concern)
 - **Deterministic timing** — `TestClock` for tests, `RealClock` for production (via `GameClock` trait)
 - **FOV-aware enemy AI** — enemies use Bresenham line-of-sight within their FOV radius to detect the player; they chase via BFS when visible and patrol their room when not
 - **Audio disabled by default** — `AudioManager::enable()` to activate; silent when unavailable

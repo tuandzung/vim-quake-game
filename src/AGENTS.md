@@ -1,5 +1,5 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-04-17 | Updated: 2026-04-22 -->
+<!-- Generated: 2026-04-17 | Updated: 2026-04-29 -->
 # src
 
 All vim-rogue source. Tests in `tests/` (integration only).
@@ -9,11 +9,11 @@ All vim-rogue source. Tests in `tests/` (integration only).
 |------|-------|------|
 | `main.rs` | 44 | Binary entry — bracket-lib setup, event loop, `ctx.quit()`, delegates to game/renderer |
 | `lib.rs` | 9 | Library root — `pub mod` re-exports |
-| `game.rs` | 814 | `App` state, `handle_key`/`tick`, `parse_motion`, `execute_motion`, `spawn_enemies_for_current_level`, `enemies_step`, win/loss/retry, pause, trail, audio dispatch |
-| `player.rs` | 247 | `Player` + 13 motion impls (h/j/k/l/w/b/0/$/G/gg/f/t/dd) |
+| `game.rs` | 740 | App coordinator — `handle_key`/`tick`, sequences cross-aggregate flows (level transitions, collision→damage, pause/resume) |
+| `player.rs` | 262 | `Player` + 13 motion impls (h/j/k/l/w/b/0/$/G/gg/f/t/dd) |
 | `map.rs` | 471 | `Map`, 80×40 grid, 5 zones, 4 levels (`carve_level`, `build_level_2/3/4`), enemy spawns + patrol areas |
-| `renderer.rs` | 899 | bracket-lib render — title/gameplay/win/lost/pause screens, viewport, sidebar, minimap, zone colors |
-| `types.rs` | 355 | Position, Tile, Zone, VimMotion, Direction, Enemy, PatrolArea, GameState, PauseOption, App, RenderGrid, ViewModel, ScreenModel |
+| `renderer.rs` | 914 | bracket-lib render — title/gameplay/win/lost/pause screens, viewport, sidebar, minimap, zone colors |
+| `types.rs` | 566 | Position, Tile, Zone, VimMotion, Direction, Enemy, PatrolArea, App + 4 aggregates (World, PlayerState, InputState, Session), RenderGrid, ViewModel, ScreenModel |
 | `animation.rs` | 182 | `GameClock` trait, `RealClock`/`TestClock`, `AnimationState`, `AnimationTimer`, `Interpolator` |
 | `visibility.rs` | 124 | `VisibilityMap` + `compute_fov`, `VisibilityState` (Hidden/Explored/Visible) |
 | `enemy.rs` | 180 | `Enemy` + FOV-aware BFS `step_toward_player`, `has_line_of_sight`, `patrol_step` |
@@ -28,8 +28,9 @@ All vim-rogue source. Tests in `tests/` (integration only).
 | Change game flow | `game.rs` | handle_key, tick, pending_input for f/t/dd/gg; ESC/q opens pause |
 | Change pause menu | `game.rs` + `renderer.rs` + `types.rs` | GameState::Paused, PauseOption, render_pause_overlay |
 | Add shared type | `types.rs` | All modules `use crate::types::*` |
-| Change enemy AI | `enemy.rs` | step_toward_player (BFS), has_line_of_sight (Bresenham), patrol_step, called via game.rs enemies_step |
+| Change enemy AI | `enemy.rs` | step_toward_player (BFS), has_line_of_sight (Bresenham), patrol_step, called via World.enemies_step |
 | Change visibility | `visibility.rs` | compute_fov, VisibilityMap, demote_visible_to_explored |
+| Change aggregate logic | `types.rs` | World (terrain, visibility, enemies), PlayerState (position, HP, trail, progression), InputState (key buffering), Session (lifecycle, timing, pause) |
 | Add animation | `animation.rs` | AnimationState + Interpolator; durations as constants |
 | Add sound | `audio.rs` | SoundEffect enum + AudioManager.play() |
 
@@ -50,13 +51,18 @@ lib.rs        ← main.rs (implicit)
 ## Conventions
 - `rustfmt.toml`: `use_small_heuristics = "Max"`, `edition = "2024"`. Run `cargo fmt --check` pre-commit.
 - `grid[y][x]` row-major — always bounds-check.
-- Single-key motions fire immediately; f/t/dd/gg set `pending_input` for next key.
+- **Aggregates**: `App` is a thin coordinator (8 fields) delegating to 4 domain aggregates:
+  - `World` — terrain, visibility, enemies, torchlights; owns `update_visibility`, `enemies_step`, `reset_for_level`
+  - `PlayerState` — position, HP, trail, motion tracking, level, checkpoint, pending respawn; owns motion/damage status messages
+  - `InputState` — `input_queue` + `pending_input` for two-phase Vim commands (f/t/dd/gg)
+  - `Session` — game state, pause selection, timing, status message
+- Single-key motions fire immediately; f/t/dd/gg set `pending_input` via InputState for next key.
 - Pause: ESC/q opens overlay; j/k or ↑/↓ navigate; Enter selects; ESC resumes. `tick()` freezes when paused.
 - `Tile`: `glyph()` (char) + `Display` (string). `VimMotion`: `key_label()`, `display_name()`, `description()`.
-- `input_queue` in App buffers keys during animation; dequeued after complete.
+- `input_queue` in InputState buffers keys during animation; dequeued after complete.
 - `GameClock`: `RealClock` prod, `TestClock` (deterministic) tests.
 - Durations: `PLAYER_MOVE_MS` (150ms), `ENEMY_MOVE_MS` (200ms), `EFFECT_MS` in animation.rs.
-- FOV: `compute_fov` ray-casts with `FOV_RADIUS`; `demote_visible_to_explored` before each recomputation.
+- FOV: `compute_fov` ray-casts with `FOV_RADIUS`; `demote_visible_to_explored` before each recomputation. `update_visibility` lives on `World`.
 - Enemy AI: FOV-aware, `ENEMY_FOV_RADIUS=8`. Bresenham LOS. BFS chase when visible, `PatrolArea` patrol when not. `patrol_area` on Enemy, `enemy_patrol_areas` on Map. Melee gated on `hp.is_some()`.
 - Audio: disabled default; `play()` no-ops when off.
 

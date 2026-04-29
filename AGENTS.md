@@ -1,5 +1,5 @@
-<!-- Generated: 2026-04-17 | Updated: 2026-04-22 -->
-<!-- Commit: f0954bc | Branch: feat/secret-cheat-codes -->
+<!-- Generated: 2026-04-17 | Updated: 2026-04-29 -->
+<!-- Commit: 45519e5 | Branch: refactor/aggregate-app-split -->
 
 # vim-rogue
 
@@ -21,11 +21,11 @@ vim-rogue/
 ## Architecture
 ```
 main.rs       → bracket-lib setup + event loop (44 lines)
-game.rs       → App state, event handling, motion dispatch, FOV-gated enemy turns, win/loss, trail, audio (814 lines)
-player.rs     → Player + 13 motion implementations (247 lines)
+game.rs       → App coordinator — sequences cross-aggregate flows: level transitions, collision→damage, pause/resume (740 lines)
+player.rs     → Player + 13 motion implementations (262 lines)
 map.rs        → 80×40 grid, 5 zones, 4 dungeon levels, corridor carving, enemy spawns + patrol areas (471 lines)
-renderer.rs   → bracket-lib rendering: title, viewport, sidebar, minimap, win/loss screens, ASCII art (899 lines)
-types.rs      → Position, Tile, Zone, VimMotion, Direction, Enemy, PatrolArea, App, RenderGrid, ViewModel (355 lines)
+renderer.rs   → bracket-lib rendering: title, viewport, sidebar, minimap, win/loss screens, ASCII art (914 lines)
+types.rs      → Position, Tile, Zone, VimMotion, Direction, Enemy, PatrolArea, App + 4 aggregates (World, PlayerState, InputState, Session), RenderGrid, ViewModel (566 lines)
 animation.rs  → GameClock, AnimationState, AnimationTimer, Interpolator (easing) (182 lines)
 visibility.rs → VisibilityMap with FOV (explored/visible/hidden states) (124 lines)
 enemy.rs      → Enemy struct with FOV-aware BFS chase + room patrol (180 lines)
@@ -42,8 +42,9 @@ lib.rs        → Re-exports all modules (9 lines)
 | Change game flow | `src/game.rs` (handle_key, tick, execute_motion) | Two-phase input for f/t/dd/gg; ESC/q = pause |
 | Change pause menu | `src/game.rs` + `src/renderer.rs` + `src/types.rs` | GameState::Paused, PauseOption, render_pause_overlay |
 | Add new types | `src/types.rs` | All modules use `crate::types::*` |
-| Change enemy AI | `src/enemy.rs` (step_toward_player, has_line_of_sight, patrol_step) | FOV-gated BFS chase + patrol, called from game.rs enemies_step |
+| Change enemy AI | `src/enemy.rs` (step_toward_player, has_line_of_sight, patrol_step) | FOV-gated BFS chase + patrol, called from World.enemies_step |
 | Change FOV/visibility | `src/visibility.rs` (compute_fov) | Hidden/Explored/Visible states |
+| Change aggregate logic | `src/types.rs` (World, PlayerState, InputState, Session) | Each aggregate owns its domain; App coordinates |
 | Add animations | `src/animation.rs` | AnimationState + Interpolator; GameClock trait |
 | Add sound effects | `src/audio.rs` (SoundEffect enum + AudioManager) | Disabled by default |
 | Fix bug | `tests/` (393 integration tests, 9 files) | main.rs + lib.rs have no tests |
@@ -100,5 +101,19 @@ After any code change, run all:
 - HP: Level 4 enemies have `hp: Some(30)`. Melee (x key) = 10 dmg. 3 hits kill.
 - Torchlight checkpoints: activate permanent FOV radius 6. Death with checkpoint → respawn (HP + teleport).
 - `examples/spike.rs`: bracket-lib PoC spike.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical roles with default label names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo. See `docs/agents/domain.md`.
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

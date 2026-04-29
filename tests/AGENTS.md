@@ -38,7 +38,7 @@
 
 ## Conventions
 - Test file mirrors src/ module (`tests/player.rs` ↔ `src/player.rs`).
-- `handle_key(app, VirtualKeyCode, shift: bool)` = main input entry for game tests.
+- `handle_key(app, VirtualKeyCode, shift: bool)` = main input entry for game tests. Access aggregates via `app.world`, `app.player_state`, `app.input_state`, `app.session`.
 - `tick(&mut app, delta_ms: f64)` advances clock, processes one frame.
 - Animation constants: `PLAYER_MOVE_MS = 150.0`, `ENEMY_MOVE_MS = 200.0`, `ATTACK_EFFECT_MS = 200.0` — import from `vim_rogue::animation`.
 - `TestClock` = deterministic timing. Always use in tests, never `RealClock`.

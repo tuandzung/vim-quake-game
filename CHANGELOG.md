@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-29
+
+### Changed
+
+- **Decompose `App` god object into 4 domain aggregates** — 29-field `App` struct split into `World`, `PlayerState`, `InputState`, `Session`; `App` reduced to 8-field thin coordinator
+- **Move reset logic into aggregate methods** — each aggregate owns its own constructors and reset behavior
+- **Move `update_visibility` into `World`** — FOV computation belongs to the aggregate that owns the map
+- **Extract motion/damage feedback into `PlayerState`** — status message generation lives with the aggregate that produces it
+
+### Tests
+
+- 393 integration tests (no behavior changes)
+
 ## [0.2.2] - 2026-04-22
 
 ### Added
@@ -87,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Zilk 16x16 and Kjammer font support
 - CI pipeline for lint, test, build, and cross-platform release
 
+[0.3.0]: https://github.com/tuandzung/vim-rogue-game/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/tuandzung/vim-rogue-game/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/tuandzung/vim-rogue-game/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/tuandzung/vim-rogue-game/compare/v0.1.0...v0.2.0
