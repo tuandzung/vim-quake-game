@@ -321,3 +321,50 @@ fn player_handle_motion_records_in_used_motions() {
         assert!(player.used_motions.contains(&motion));
     }
 }
+
+#[test]
+fn handle_motion_increments_motion_count_on_success_and_failure() {
+    let mut map = test_map(5, 5);
+    let mut player = PlayerState::new(Position { x: 0, y: 0 });
+
+    assert_eq!(player.motion_count, 0);
+
+    // Failed motion still increments count
+    assert!(!player.handle_motion(VimMotion::GotoLine, None, &mut map));
+    assert_eq!(player.motion_count, 1);
+
+    // Successful motion increments count
+    assert!(player.handle_motion(VimMotion::L, None, &mut map));
+    assert_eq!(player.motion_count, 2);
+}
+
+#[test]
+fn handle_motion_discovered_motions_no_duplicates() {
+    let mut map = test_map(5, 5);
+    let mut player = PlayerState::new(Position { x: 0, y: 0 });
+
+    assert!(player.discovered_motions.is_empty());
+
+    // First call registers motion
+    player.handle_motion(VimMotion::L, None, &mut map);
+    assert!(player.discovered_motions.contains(&VimMotion::L));
+    assert_eq!(player.discovered_motions.len(), 1);
+
+    // Repeated call does not add duplicate
+    player.handle_motion(VimMotion::L, None, &mut map);
+    assert_eq!(player.discovered_motions.len(), 1);
+
+    // Different motion adds to set
+    player.handle_motion(VimMotion::J, None, &mut map);
+    assert_eq!(player.discovered_motions.len(), 2);
+}
+
+#[test]
+fn handle_motion_discovered_motions_includes_failed_attempts() {
+    let mut map = test_map(5, 5);
+    let mut player = PlayerState::new(Position { x: 0, y: 0 });
+
+    // GotoLine fails at y=0 but still registers
+    assert!(!player.handle_motion(VimMotion::GotoLine, None, &mut map));
+    assert!(player.discovered_motions.contains(&VimMotion::GotoLine));
+}
