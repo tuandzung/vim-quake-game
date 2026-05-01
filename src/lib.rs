@@ -7,3 +7,5 @@ pub mod player;
 pub mod renderer;
 pub mod types;
 pub mod visibility;
+
+pub mod test_support;
